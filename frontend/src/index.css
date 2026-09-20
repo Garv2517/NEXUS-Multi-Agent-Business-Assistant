@@ -1,0 +1,64 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: #050315;
+  color: #fbfbfe;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* Custom polished dark scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(222, 220, 255, 0.12);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(222, 220, 255, 0.25);
+}
+
+/* Glass & Card utility styles */
+.nexus-card {
+  background-color: #0c0827;
+  border: 1px solid rgba(222, 220, 255, 0.08);
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nexus-card:hover {
+  border-color: rgba(67, 59, 255, 0.35);
+}
+
+.nexus-card-subtle {
+  background-color: rgba(12, 8, 39, 0.5);
+  border: 1px solid rgba(222, 220, 255, 0.05);
+  border-radius: 0.5rem;
+}
+
+/* Code & JSON block styling */
+pre, code {
+  font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
