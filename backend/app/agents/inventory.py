@@ -10,11 +10,11 @@ from typing import Optional
 from .base import BaseAgent
 from .types import AgentTask, AgentResult, ToolCallRecord
 from ..tools.inventory_tools import (
-    get_product_stock,
+    get_inventory_summary,
     get_low_stock_products,
-    get_inventory_summary
+    get_product_stock,
+    get_all_products_inventory
 )
-from ..services.business_service import BusinessService
 
 
 class InventoryAgent(BaseAgent):
@@ -79,6 +79,7 @@ class InventoryAgent(BaseAgent):
             )
 
             # Exactly one durable activity record per tool execution
+            from ..services.business_service import BusinessService
             BusinessService.record_activity(
                 agent=self.name,
                 action=summary,

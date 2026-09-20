@@ -9,7 +9,9 @@ class HealthResponse(BaseModel):
     foundry: str = Field(default="not_configured")
     model: str = Field(default="not_configured")
     mode: str = Field(default="mock")
+    orchestration_mode: Optional[str] = Field(default=None)
     version: str = Field(default="0.1.0")
+
 
 
 # --- Dashboard Models ---

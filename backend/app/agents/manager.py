@@ -14,7 +14,7 @@ import uuid
 from typing import Optional, List, Dict, Any
 from .types import AgentTask, AgentResult, ToolCallRecord, ExecutionPlan
 from .registry import AgentRegistry, create_default_registry
-from ..orchestration.router import DeterministicRouter
+from ..core.config import settings
 from ..models.chat import ChatResponse
 from ..models.trace import ToolCall, TraceEvent
 
@@ -25,10 +25,25 @@ class ManagerAgent:
     def __init__(
         self,
         registry: Optional[AgentRegistry] = None,
-        router: Optional[DeterministicRouter] = None
+        router: Optional[Any] = None,
+        foundry_router: Optional[Any] = None,
+        orchestration_mode: Optional[str] = None,
+        fallback_to_local: Optional[bool] = None,
     ):
         self.registry = registry or create_default_registry()
-        self.router = router or DeterministicRouter()
+        if router is not None:
+            self.router = router
+        else:
+            from ..orchestration.router import DeterministicRouter
+            self.router = DeterministicRouter()
+        self.foundry_router = foundry_router
+        self.orchestration_mode = orchestration_mode or getattr(settings, "ORCHESTRATION_MODE", "local")
+        self.fallback_to_local = (
+            fallback_to_local
+            if fallback_to_local is not None
+
+            else getattr(settings, "FOUNDRY_FALLBACK_TO_LOCAL", True)
+        )
 
     async def orchestrate(
         self,
@@ -59,9 +74,86 @@ class ManagerAgent:
         )
 
         # 2. Router determines intent & plan
-        plan = self.router.route(query)
+        routing_metadata: Dict[str, Any] = {}
+        plan: Optional[ExecutionPlan] = None
 
-        # 3. Handle Unsupported / Out-of-Domain queries
+        if self.orchestration_mode == "foundry_manager":
+            try:
+                from ..orchestration.foundry_router import get_foundry_router
+                f_router = self.foundry_router or get_foundry_router()
+                plan, routing_metadata = await f_router.route(query)
+            except Exception as e:
+                failure_cat = getattr(e, "category", type(e).__name__)
+                if self.fallback_to_local:
+                    routing_metadata = {
+                        "routing_source": "local_fallback",
+                        "failure_category": failure_cat
+                    }
+                    plan = self.router.route(query)
+                else:
+                    trace.append(
+                        TraceEvent(
+                            id=next_event_id(),
+                            type="route_selected",
+                            agent="manager",
+                            status="error",
+                            message=f"Foundry routing failed: {failure_cat}",
+                            metadata={"routing_source": "foundry_error", "failure_category": failure_cat}
+                        )
+                    )
+                    trace.append(
+                        TraceEvent(
+                            id=next_event_id(),
+                            type="response_completed",
+                            agent="manager",
+                            status="error",
+                            message="Routing service unavailable"
+                        )
+                    )
+                    return ChatResponse(
+                        session_id=session_id,
+                        answer=f"Routing service failure: {failure_cat}. Unable to process request.",
+                        agents_used=[],
+                        tool_calls=[],
+                        trace=trace,
+                        plan=None
+                    )
+        else:
+            plan = self.router.route(query)
+            routing_metadata = {
+                "routing_source": "local",
+                "intent": plan.intent
+            }
+
+        # 3. Route selected event
+        agents_display = " and ".join([f"{a.capitalize()} Agent" for a in plan.agents])
+        route_message = (
+            f"Foundry Manager selected a validated Nexus route ({plan.intent})."
+            if routing_metadata.get("routing_source") == "foundry"
+            else (
+                f"Foundry routing failed ({routing_metadata.get('failure_category')}); fell back to local deterministic router."
+                if routing_metadata.get("routing_source") == "local_fallback"
+                else (
+                    f"Classified request as {plan.intent}"
+                    if not plan.agents
+                    else f"Routed request to {agents_display}"
+                )
+            )
+        )
+        route_status = "warning" if routing_metadata.get("routing_source") == "local_fallback" else "success"
+
+        trace.append(
+            TraceEvent(
+                id=next_event_id(),
+                type="route_selected",
+                agent="manager",
+                status=route_status,
+                message=route_message,
+                metadata=routing_metadata
+            )
+        )
+
+        # 4. Handle Unsupported / Out-of-Domain queries
         if plan.intent == "unsupported":
             trace.append(
                 TraceEvent(
@@ -81,18 +173,8 @@ class ManagerAgent:
                 plan=plan.model_dump()
             )
 
-        # 4. Route selected event
-        agents_display = " and ".join([f"{a.capitalize()} Agent" for a in plan.agents])
-        trace.append(
-            TraceEvent(
-                id=next_event_id(),
-                type="route_selected",
-                agent="manager",
-                status="success",
-                message=f"Routed request to {agents_display}"
-            )
-        )
         agents_used = list(plan.agents)
+
 
         # 5. Execute Plan
         # --- Case A: Compound Sales + Inventory Comparison ---
@@ -477,6 +559,8 @@ class ManagerAgent:
                     prods = res.data.get("products", [])
                     names = [f"{p['name']} ({p['units_sold']} units, ₹{int(p['revenue']):,})" for p in prods[:3]]
                     answer = f"Top-selling products this month: {', '.join(names)}."
+                elif step.operation == "sales.monthly":
+                    answer = f"Monthly sales for {res.data.get('month', 9)}/{res.data.get('year', 2026)}: Total revenue is ₹{int(res.data.get('revenue', 0)):,} across {res.data.get('units_sold', 0)} units sold."
                 else:
                     answer = f"Total revenue generated this month is ₹{int(res.data.get('revenue', 0)):,} across {res.data.get('units_sold', 0)} units sold."
 
@@ -496,14 +580,22 @@ class ManagerAgent:
                         if items:
                             items[-1] = items[-1] + "."
                         answer = f"{count} products are low in stock. Showing {len(products)}:\n" + "\n".join(items)
+                elif step.operation == "inventory.product_stock":
+                    answer = f"Product '{res.data.get('name')}' (ID: {res.data.get('id')}): {res.data.get('stock')} units in stock (status: {res.data.get('status')}, reorder level: {res.data.get('reorder_level')})."
                 else:
                     answer = f"Inventory summary: {res.data.get('total_products')} products in catalog, {res.data.get('healthy')} healthy, {res.data.get('low_stock')} low stock, and {res.data.get('out_of_stock')} out of stock."
 
             elif agent_name == "hr":
                 if step.operation == "hr.policy":
                     answer = f"{res.data.get('title')}: {res.data.get('summary')}. {res.data.get('content')}"
+                elif step.operation == "hr.policies":
+                    titles = [p.get("title") for p in res.data.get("policies", [])]
+                    answer = f"Nexus has {res.data.get('count', len(titles))} corporate policies: {', '.join(titles)}."
+                elif step.operation == "hr.employee":
+                    answer = f"Employee profile for {res.data.get('name')} (ID: {res.data.get('id')}): {res.data.get('role')} in {res.data.get('department')}. Status is {res.data.get('status')}, with {res.data.get('leave_balance')} leave days remaining."
                 else:
                     answer = f"Nexus currently has {res.data.get('employee_count')} active employees across {res.data.get('departments')} departments, with {res.data.get('employees_on_leave')} on leave."
+
 
             trace.append(TraceEvent(id=next_event_id(), type="response_completed", agent="manager", status="success", message="Final response generated"))
 

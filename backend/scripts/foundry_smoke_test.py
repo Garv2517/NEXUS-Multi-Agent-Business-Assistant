@@ -11,15 +11,8 @@ import asyncio
 from pathlib import Path
 from typing import Dict, Any
 
-# Ensure standard Azure CLI install locations on Windows are on PATH if present
-for azure_cli_dir in [
-    r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin",
-    r"C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin",
-]:
-    if Path(azure_cli_dir).is_dir() and azure_cli_dir not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = azure_cli_dir + os.pathsep + os.environ.get("PATH", "")
-
 # Pre-load local environment from backend/.env if available
+
 try:
     from dotenv import load_dotenv
     env_path = Path(__file__).resolve().parent.parent / ".env"

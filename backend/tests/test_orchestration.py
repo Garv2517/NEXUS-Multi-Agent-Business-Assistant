@@ -183,7 +183,7 @@ async def test_manager_compound_query_activity_deduplication(test_db):
     from app.db.repositories import get_activity_logs_db
 
     with get_db(test_db) as conn:
-        before = len(get_activity_logs_db(conn))
+        before = len(get_activity_logs_db(conn, limit=1000))
 
     manager = ManagerAgent()
     resp = await manager.orchestrate(
@@ -193,7 +193,8 @@ async def test_manager_compound_query_activity_deduplication(test_db):
     )
 
     with get_db(test_db) as conn:
-        after = len(get_activity_logs_db(conn))
+        after = len(get_activity_logs_db(conn, limit=1000))
+
 
     # Exactly 4 durable records: 1 sales tool + 3 inventory tool calls
     assert after == before + 4

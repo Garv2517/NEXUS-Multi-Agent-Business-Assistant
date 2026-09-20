@@ -15,7 +15,7 @@ from ..tools.hr_tools import (
     get_hr_policy,
     get_all_hr_policies_tool
 )
-from ..services.business_service import BusinessService
+
 
 
 class HRAgent(BaseAgent):
@@ -85,6 +85,7 @@ class HRAgent(BaseAgent):
             )
 
             # Exactly one durable activity record per tool execution
+            from ..services.business_service import BusinessService
             BusinessService.record_activity(
                 agent=self.name,
                 action=summary,

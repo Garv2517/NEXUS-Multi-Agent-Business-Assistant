@@ -42,15 +42,31 @@ from ..db.repositories import get_activity_logs_db, add_activity_log_db
 class BusinessService:
     @staticmethod
     def get_health() -> HealthResponse:
-        """Returns service health and Phase B2 mode status."""
+        """Returns service health and configuration status without live model calls."""
+        from ..core.config import settings
+        is_foundry = getattr(settings, "ORCHESTRATION_MODE", "local") == "foundry_manager"
+        has_endpoint = bool(getattr(settings, "FOUNDRY_PROJECT_ENDPOINT", None))
+
+        if is_foundry and has_endpoint:
+            return HealthResponse(
+                status="online",
+                backend="ready",
+                foundry="configured",
+                model=getattr(settings, "FOUNDRY_MODEL", "gpt-5-mini"),
+                mode="foundry_manager",
+                orchestration_mode="foundry_manager",
+                version="0.1.0"
+            )
         return HealthResponse(
             status="online",
             backend="ready",
             foundry="not_configured",
             model="not_configured",
             mode="local_orchestration",
+            orchestration_mode="local",
             version="0.1.0"
         )
+
 
     @staticmethod
     def get_dashboard(db_path: Optional[str] = None) -> DashboardResponse:

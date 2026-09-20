@@ -15,8 +15,10 @@ class Settings(BaseSettings):
 
     # Microsoft Foundry / Azure AI configurations (Phase B4)
     FOUNDRY_PROJECT_ENDPOINT: Optional[str] = ""
-    FOUNDRY_MODEL: Optional[str] = ""
+    FOUNDRY_MODEL: Optional[str] = "gpt-5-mini"
     ORCHESTRATION_MODE: str = "local"
+    FOUNDRY_FALLBACK_TO_LOCAL: bool = True
+    FOUNDRY_ROUTING_TIMEOUT_SECONDS: float = 15.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

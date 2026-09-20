@@ -15,7 +15,7 @@ from ..tools.sales_tools import (
     get_top_products,
     get_sales_trend
 )
-from ..services.business_service import BusinessService
+
 
 
 class SalesAgent(BaseAgent):
@@ -91,6 +91,7 @@ class SalesAgent(BaseAgent):
             )
 
             # Exactly one durable activity record per tool execution
+            from ..services.business_service import BusinessService
             BusinessService.record_activity(
                 agent=self.name,
                 action=summary,

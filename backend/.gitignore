@@ -26,3 +26,7 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+*.db-journal
+*.db-wal
+*.db-shm
+
