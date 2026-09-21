@@ -37,7 +37,7 @@ const AGENT_CONFIGS = {
     border: 'border-amber-500/30'
   },
   hr: {
-    name: 'HR Agent',
+    name: 'People Management Agent',
     icon: Users,
     color: 'text-sky-300',
     bg: 'bg-sky-950/40',
@@ -71,7 +71,7 @@ export function AgentTraceItem({ event, isLast, index }) {
     ? 'sales'
     : (event.agent || '').toLowerCase().includes('inventory')
     ? 'inventory'
-    : (event.agent || '').toLowerCase().includes('hr')
+    : ((event.agent || '').toLowerCase().includes('hr') || (event.agent || '').toLowerCase().includes('people'))
     ? 'hr'
     : 'manager';
 

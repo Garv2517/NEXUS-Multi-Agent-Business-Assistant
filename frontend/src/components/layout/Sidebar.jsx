@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { path: '/assistant', label: 'Assistant', icon: Bot, badge: 'Live' },
   { path: '/sales', label: 'Sales', icon: TrendingUp },
   { path: '/inventory', label: 'Inventory', icon: Package, alertCount: 4 },
-  { path: '/hr', label: 'HR', icon: Users },
+  { path: '/hr', label: 'People Management', icon: Users },
   { path: '/activity', label: 'Activity', icon: Activity },
 ];
 

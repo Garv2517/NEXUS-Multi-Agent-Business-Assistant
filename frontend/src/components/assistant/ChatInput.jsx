@@ -69,7 +69,7 @@ export function ChatInput({ onSend, isProcessing, placeholder }) {
         <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 mt-1.5">
           <span className="flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-[#433bff]" />
-            Multi-agent routing: Manager &rarr; Sales, Inventory, HR
+            Multi-agent routing: Manager &rarr; Sales, Inventory, People Management
           </span>
           <span className="hidden md:inline font-mono">Shift+Enter for new line</span>
         </div>

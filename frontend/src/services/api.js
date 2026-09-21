@@ -208,7 +208,7 @@ export async function getActivityLogs() {
   return data.map((item) => ({
     id: item.id,
     timestamp: item.timestamp,
-    agent: item.agent === 'sales' ? 'Sales Agent' : item.agent === 'inventory' ? 'Inventory Agent' : item.agent === 'hr' ? 'HR Agent' : 'Manager Agent',
+    agent: item.agent === 'sales' ? 'Sales Agent' : item.agent === 'inventory' ? 'Inventory Agent' : item.agent === 'hr' ? 'People Management Agent' : 'Manager Agent',
     action: item.action,
     tool: item.tool || '-',
     status: item.status === 'success' ? 'Success' : item.status,

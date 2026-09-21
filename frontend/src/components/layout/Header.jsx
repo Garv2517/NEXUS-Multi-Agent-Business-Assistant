@@ -7,7 +7,7 @@ const ROUTE_TITLES = {
   '/assistant': 'Assistant',
   '/sales': 'Sales Intelligence',
   '/inventory': 'Inventory Management',
-  '/hr': 'Human Resources',
+  '/hr': 'People Management',
   '/activity': 'AI Activity & Audit Logs'
 };
 

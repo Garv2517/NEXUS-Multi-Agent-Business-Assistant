@@ -58,7 +58,7 @@ export function HR() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <PageHeader
-        title="Human Resources"
+        title="People Management Overview"
         description="Team census, active leave schedules, and organizational policies."
         badge="Active Team"
         actions={
@@ -68,7 +68,7 @@ export function HR() {
             className="px-3 py-1.5 rounded-xl bg-[#2f27ce] hover:bg-[#433bff] text-white text-xs font-medium flex items-center gap-1.5 shadow-subtle-glow transition-all"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#dedcff]" />
-            <span>Ask HR Agent</span>
+            <span>Ask People Management Agent</span>
           </button>
         }
       />
@@ -109,12 +109,12 @@ export function HR() {
         />
       </div>
 
-      {/* HR Policies Cards */}
+      {/* People Policies Cards */}
       <div>
         <div className="flex items-center justify-between pb-3 mb-3">
           <h3 className="text-sm font-semibold text-[#fbfbfe] flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#dedcff]" />
-            Corporate HR Policies & Guidelines
+            Company Policies & Guidelines
           </h3>
           <span className="text-xs text-slate-400">
             Nexus automated policy guidance

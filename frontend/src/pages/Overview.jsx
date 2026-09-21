@@ -227,7 +227,7 @@ export function Overview() {
               </h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              The Nexus Manager Agent automatically routes complex inquiries across Sales, Inventory, and HR systems.
+              The Nexus Manager Agent automatically routes complex inquiries across Sales, Inventory, and People Management systems.
             </p>
 
             <div className="space-y-2">

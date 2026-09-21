@@ -13,7 +13,7 @@ import { PageHeader } from '../components/common/PageHeader';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { getActivityLogs } from '../services/api';
 
-const AGENT_FILTERS = ['All', 'Manager', 'Sales', 'Inventory', 'HR'];
+const AGENT_FILTERS = ['All', 'Manager', 'Sales', 'Inventory', 'People Management'];
 
 export function Activity() {
   const [logs, setLogs] = useState([]);
@@ -50,6 +50,8 @@ export function Activity() {
     const matchesFilter =
       selectedFilter === 'All'
         ? true
+        : selectedFilter === 'People Management'
+        ? (item.agent.toLowerCase().includes('people') || item.agent.toLowerCase().includes('hr'))
         : item.agent.toLowerCase().includes(selectedFilter.toLowerCase());
 
     const matchesSearch =

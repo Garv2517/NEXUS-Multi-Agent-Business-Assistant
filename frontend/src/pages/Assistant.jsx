@@ -74,7 +74,7 @@ export function Assistant() {
         <ChatInput
           onSend={sendMessage}
           isProcessing={isProcessing}
-          placeholder="Ask Nexus about sales, inventory, HR, or your business..."
+          placeholder="Ask Nexus about sales, inventory, People Management, or your business..."
         />
       </div>
 

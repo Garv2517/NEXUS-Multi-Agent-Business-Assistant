@@ -83,7 +83,7 @@ export function AgentTrace({ events, isOrchestrating, activeAgent, onReset, onCl
               Waiting for Agent Query
             </div>
             <p className="text-[11px] text-slate-400 mt-1 max-w-[200px]">
-              Send a query to observe the Manager Agent route tasks to Sales, Inventory, and HR in real-time.
+              Send a query to observe the Manager Agent route tasks to Sales, Inventory, and People Management in real-time.
             </p>
           </div>
         ) : (

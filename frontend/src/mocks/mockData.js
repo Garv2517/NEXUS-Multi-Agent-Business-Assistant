@@ -9,7 +9,7 @@ export const mockHealthStatus = {
   latency_ms: 42,
   model: "nexus-manager-v1",
   orchestrator: "Multi-Agent Routing Mesh",
-  active_agents: ["Manager Agent", "Sales Agent", "Inventory Agent", "HR Agent"]
+  active_agents: ["Manager Agent", "Sales Agent", "Inventory Agent", "People Management Agent"]
 };
 
 export const mockDashboardData = {
@@ -284,9 +284,9 @@ export const mockActivityLogs = [
   {
     id: "act-104",
     timestamp: "09:15",
-    agent: "HR Agent",
+    agent: "People Management Agent",
     action: "Looked up leave policies",
-    tool: "get_policy_details",
+    tool: "get_hr_policy",
     status: "Success",
     duration: "310ms",
     meta: { policy: "POL-HR-01" }
@@ -495,23 +495,23 @@ export const mockAgentWorkflows = {
   },
 
   business_overview: {
-    answer: "Business health is strong overall. Revenue is up +12.4% (₹1,24,500), orders reached 248, and HR reports 36 active team members with 3 on approved leave. The immediate operational priority is restocking 4 depleted hardware lines.",
+    answer: "Business health is strong overall. Revenue is up +12.4% (₹1,24,500), orders reached 248, and People Management reports 36 active team members with 3 on approved leave. The immediate operational priority is restocking 4 depleted hardware lines.",
     session_id: "session_004",
     agents_used: ["sales", "inventory", "hr"],
     tool_calls: [
       { agent: "sales", tool: "get_monthly_revenue", status: "success", duration: "320ms" },
       { agent: "inventory", tool: "scan_low_stock", status: "success", duration: "290ms" },
-      { agent: "hr", tool: "get_headcount_summary", status: "success", duration: "210ms" }
+      { agent: "hr", tool: "get_employee_summary", status: "success", duration: "210ms" }
     ],
     events: [
       { id: "bo-1", type: "manager_started", agent: "Manager Agent", status: "running", message: "Decomposing full business inquiry" },
-      { id: "bo-2", type: "route_selected", agent: "Manager Agent", status: "success", message: "Dispatched parallel queries to Sales, Inventory, and HR" },
+      { id: "bo-2", type: "route_selected", agent: "Manager Agent", status: "success", message: "Dispatched parallel queries to Sales, Inventory, and People Management" },
       { id: "bo-3", type: "agent_started", agent: "Sales Agent", status: "running", message: "Sales audit active" },
       { id: "bo-4", type: "tool_completed", agent: "Sales Agent", tool: "get_monthly_revenue()", status: "success", duration: "320ms", message: "Revenue calculated" },
       { id: "bo-5", type: "agent_started", agent: "Inventory Agent", status: "running", message: "Warehouse audit active" },
       { id: "bo-6", type: "tool_completed", agent: "Inventory Agent", tool: "scan_low_stock()", status: "success", duration: "290ms", message: "Stock status compiled" },
-      { id: "bo-7", type: "agent_started", agent: "HR Agent", status: "running", message: "Staff census active" },
-      { id: "bo-8", type: "tool_completed", agent: "HR Agent", tool: "get_headcount_summary()", status: "success", duration: "210ms", message: "36 active verified" },
+      { id: "bo-7", type: "agent_started", agent: "People Management Agent", status: "running", message: "Staff census active" },
+      { id: "bo-8", type: "tool_completed", agent: "People Management Agent", tool: "get_employee_summary()", status: "success", duration: "210ms", message: "36 active verified" },
       { id: "bo-9", type: "response_completed", agent: "Manager Agent", status: "success", message: "Executive synthesis complete" }
     ]
   }
