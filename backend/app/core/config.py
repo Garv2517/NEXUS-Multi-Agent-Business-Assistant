@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     FRONTEND_ORIGIN: str = "http://localhost:5173"
     DATABASE_PATH: str = str(BASE_DIR / "data" / "nexus.db")
+    ANALYTICS_DATABASE_PATH: str = "data/nexus_analytics.db"
 
     # Microsoft Foundry / Azure AI configurations (Phase B4)
     FOUNDRY_PROJECT_ENDPOINT: Optional[str] = ""
@@ -33,6 +34,21 @@ class Settings(BaseSettings):
         p = Path(self.DATABASE_PATH)
         if not p.is_absolute():
             return str((BASE_DIR / p).resolve())
+        return str(p.resolve())
+
+    def get_analytics_database_path(self) -> str:
+        """Resolves analytics database path relative to BASE_DIR if relative."""
+        if self.ANALYTICS_DATABASE_PATH == ":memory:":
+            return ":memory:"
+        p = Path(self.ANALYTICS_DATABASE_PATH)
+        if not p.is_absolute():
+            candidate = (BASE_DIR / p).resolve()
+            if candidate.exists():
+                return str(candidate)
+            candidate_root = (BASE_DIR.parent / p).resolve()
+            if candidate_root.exists():
+                return str(candidate_root)
+            return str(candidate)
         return str(p.resolve())
 
 
