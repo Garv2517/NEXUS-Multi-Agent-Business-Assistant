@@ -30,3 +30,10 @@ htmlcov/
 *.db-wal
 *.db-shm
 
+# Generated Kaggle Analytics Database Artifacts Only (nexus.db remains tracked)
+data/nexus_analytics.db
+data/nexus_analytics.db-wal
+data/nexus_analytics.db-shm
+data/nexus_analytics.tmp.db
+data/nexus_analytics.tmp.db-wal
+data/nexus_analytics.tmp.db-shm
