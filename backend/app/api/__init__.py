@@ -5,6 +5,7 @@ from .sales import router as sales_router
 from .inventory import router as inventory_router
 from .hr import router as hr_router
 from .activity import router as activity_router
+from .analytics import router as analytics_router
 
 __all__ = [
     "health_router",
@@ -13,5 +14,6 @@ __all__ = [
     "sales_router",
     "inventory_router",
     "hr_router",
-    "activity_router"
+    "activity_router",
+    "analytics_router"
 ]

@@ -236,9 +236,19 @@ class InventoryAnalyticsModel(BaseModel):
     potential_gross_margin_cents: int = Field(..., description="Potential margin (retail - cost) in cents")
     potential_gross_margin_pct: float = Field(..., description="Potential margin percentage")
     total_placements: int = Field(..., description="Total store-SKU inventory placements")
-    zero_stock_placements: int = Field(..., description="Placements with stock_on_hand = 0")
-    healthy_stock_placements: int = Field(..., description="Placements with stock_on_hand > 0")
+    out_of_stock_placements: int = Field(..., description="Placements with stock_on_hand = 0")
+    in_stock_placements: int = Field(..., description="Placements with stock_on_hand > 0")
     stockout_rate_pct: float = Field(..., description="Percentage of placements out of stock")
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "out_of_stock_placements" not in data and "zero_stock_placements" in data:
+                data["out_of_stock_placements"] = data["zero_stock_placements"]
+            if "in_stock_placements" not in data and "healthy_stock_placements" in data:
+                data["in_stock_placements"] = data["healthy_stock_placements"]
+        return data
 
     @property
     def cost_value_usd(self) -> float:

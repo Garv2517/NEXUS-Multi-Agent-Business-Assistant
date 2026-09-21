@@ -8,6 +8,7 @@ import { Inventory } from './pages/Inventory';
 import { HR } from './pages/HR';
 import { Activity } from './pages/Activity';
 import { About } from './pages/About';
+import { BusinessPerformance } from './pages/BusinessPerformance';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Overview />} />
         <Route path="assistant" element={<Assistant />} />
+        <Route path="performance" element={<BusinessPerformance />} />
         <Route path="sales" element={<Sales />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="hr" element={<HR />} />

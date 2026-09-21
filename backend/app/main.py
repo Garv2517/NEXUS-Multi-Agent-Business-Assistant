@@ -6,6 +6,7 @@ import logging
 
 from .core.config import settings
 from .db.connection import initialize_database
+from .repositories.analytics_repository import AnalyticsDatabaseNotFoundError
 from .api import (
     health_router,
     chat_router,
@@ -13,7 +14,8 @@ from .api import (
     sales_router,
     inventory_router,
     hr_router,
-    activity_router
+    activity_router,
+    analytics_router
 )
 
 # Configure basic logging
@@ -64,6 +66,7 @@ app.include_router(sales_router)
 app.include_router(inventory_router)
 app.include_router(hr_router)
 app.include_router(activity_router)
+app.include_router(analytics_router)
 
 
 @app.get("/", tags=["Root"])
@@ -74,6 +77,16 @@ async def root():
         "docs": "/docs",
         "mode": "sqlite_tools"
     }
+
+
+# Exception handler for missing analytics database -> HTTP 503
+@app.exception_handler(AnalyticsDatabaseNotFoundError)
+async def analytics_database_not_found_handler(request: Request, exc: AnalyticsDatabaseNotFoundError):
+    logger.warning(f"Analytics database unavailable on {request.method} {request.url.path}")
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Analytics dataset unavailable"}
+    )
 
 
 # Safe generic error handler for unexpected server errors

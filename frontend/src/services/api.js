@@ -272,3 +272,95 @@ export async function sendMessage(message, onEvent = () => {}) {
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 }
+
+/**
+ * ============================================================================
+ * Phase D1D: External Kaggle Analytics API Services (/api/analytics/*)
+ * Read-only analytics endpoints backed by nexus_analytics.db.
+ * ============================================================================
+ */
+
+/**
+ * GET /api/analytics/metadata
+ */
+export async function getAnalyticsMetadata() {
+  return await apiRequest("/api/analytics/metadata");
+}
+
+/**
+ * GET /api/analytics/summary
+ */
+export async function getAnalyticsSummary() {
+  return await apiRequest("/api/analytics/summary");
+}
+
+/**
+ * GET /api/analytics/monthly-sales
+ */
+export async function getAnalyticsMonthlySales() {
+  return await apiRequest("/api/analytics/monthly-sales");
+}
+
+/**
+ * GET /api/analytics/categories
+ */
+export async function getAnalyticsCategories() {
+  return await apiRequest("/api/analytics/categories");
+}
+
+/**
+ * GET /api/analytics/products
+ * @param {Object} [params] - { limit, order_by, category }
+ */
+export async function getAnalyticsProducts(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  if (params.order_by) query.append("order_by", params.order_by);
+  if (params.category) query.append("category", params.category);
+
+  const qs = query.toString();
+  return await apiRequest(`/api/analytics/products${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/analytics/stores
+ * @param {Object} [params] - { limit, order_by, location }
+ */
+export async function getAnalyticsStores(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  if (params.order_by) query.append("order_by", params.order_by);
+  if (params.location) query.append("location", params.location);
+
+  const qs = query.toString();
+  return await apiRequest(`/api/analytics/stores${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/analytics/locations
+ */
+export async function getAnalyticsLocations() {
+  return await apiRequest("/api/analytics/locations");
+}
+
+/**
+ * GET /api/analytics/inventory
+ */
+export async function getAnalyticsInventory() {
+  return await apiRequest("/api/analytics/inventory");
+}
+
+/**
+ * GET /api/analytics/inventory/products
+ * @param {Object} [params] - { limit, order_by, category }
+ */
+export async function getAnalyticsInventoryProducts(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  if (params.order_by) query.append("order_by", params.order_by);
+  if (params.category) query.append("category", params.category);
+
+  const qs = query.toString();
+  return await apiRequest(`/api/analytics/inventory/products${qs ? `?${qs}` : ''}`);
+}
+

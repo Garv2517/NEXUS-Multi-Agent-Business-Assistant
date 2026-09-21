@@ -10,16 +10,21 @@ import {
   X,
   Sparkles,
   Layers,
-  Info
+  Info,
+  BarChart3
 } from 'lucide-react';
 
-const NAV_ITEMS = [
+const WORKSPACE_ITEMS = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
-  { path: '/assistant', label: 'Assistant', icon: Bot, badge: 'Live' },
   { path: '/sales', label: 'Sales', icon: TrendingUp },
   { path: '/inventory', label: 'Inventory', icon: Package, alertCount: 4 },
   { path: '/hr', label: 'People Management', icon: Users },
   { path: '/activity', label: 'Activity', icon: Activity },
+];
+
+const INTELLIGENCE_ITEMS = [
+  { path: '/assistant', label: 'Assistant', icon: Bot, badge: 'Live' },
+  { path: '/performance', label: 'Business Performance', icon: BarChart3, badge: 'USD' },
 ];
 
 export function Sidebar({ isMobileOpen, onCloseMobile }) {
@@ -69,58 +74,104 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
         </div>
 
         {/* Navigation Items */}
-        <div className="px-3 py-4 flex-1 overflow-y-auto space-y-1">
-          <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Workspace
+        <div className="px-3 py-4 flex-1 overflow-y-auto space-y-4">
+          {/* Intelligence Section */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#a5a0ff]">
+              Intelligence
+            </div>
+            {INTELLIGENCE_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={onCloseMobile}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${
+                      isActive
+                        ? 'bg-[#2f27ce]/25 border border-[#433bff]/40 text-[#fbfbfe] shadow-card-glow'
+                        : 'text-slate-300 hover:text-white hover:bg-[#130f3b]/50 border border-transparent'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <Icon
+                          className={`w-4 h-4 transition-colors ${
+                            isActive
+                              ? 'text-[#dedcff]'
+                              : 'text-slate-400 group-hover:text-slate-200'
+                          }`}
+                        />
+                        <span>{item.label}</span>
+                      </div>
+
+                      {item.badge && (
+                        <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                          item.badge === 'USD'
+                            ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
+                            : 'bg-[#433bff]/30 border border-[#433bff]/40 text-[#dedcff]'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
 
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={onCloseMobile}
-                className={({ isActive }) =>
-                  `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${
-                    isActive
-                      ? 'bg-[#2f27ce]/25 border border-[#433bff]/40 text-[#fbfbfe] shadow-card-glow'
-                      : 'text-slate-300 hover:text-white hover:bg-[#130f3b]/50 border border-transparent'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <Icon
-                        className={`w-4 h-4 transition-colors ${
-                          isActive
-                            ? 'text-[#dedcff]'
-                            : 'text-slate-400 group-hover:text-slate-200'
-                        }`}
-                      />
-                      <span>{item.label}</span>
-                    </div>
+          {/* Workspace Section */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Workspace
+            </div>
 
-                    {item.badge && (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#433bff]/30 border border-[#433bff]/40 text-[#dedcff]">
-                        {item.badge}
-                      </span>
-                    )}
+            {WORKSPACE_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={onCloseMobile}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${
+                      isActive
+                        ? 'bg-[#2f27ce]/25 border border-[#433bff]/40 text-[#fbfbfe] shadow-card-glow'
+                        : 'text-slate-300 hover:text-white hover:bg-[#130f3b]/50 border border-transparent'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <Icon
+                          className={`w-4 h-4 transition-colors ${
+                            isActive
+                              ? 'text-[#dedcff]'
+                              : 'text-slate-400 group-hover:text-slate-200'
+                          }`}
+                        />
+                        <span>{item.label}</span>
+                      </div>
 
-                    {item.alertCount && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-950/60 border border-amber-500/40 text-amber-300">
-                        {item.alertCount}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
+                      {item.alertCount && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-950/60 border border-amber-500/40 text-amber-300">
+                          {item.alertCount}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
 
           {/* Visual Separator */}
-          <div className="pt-3 pb-2 px-3">
+          <div className="pt-2 pb-1 px-3">
             <div className="h-px bg-[#1f1a54]/80 w-full" />
           </div>
 

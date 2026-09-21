@@ -253,9 +253,11 @@ def test_get_inventory_analytics(analytics_service):
     assert inv.snapshot_date == "2025-12-31"
     assert inv.snapshot_date_is_assumed is True
     assert inv.total_placements == 14143
-    assert inv.total_units_on_hand == 338993
-    assert inv.zero_stock_placements == 321
-    assert inv.healthy_stock_placements == 13822  # 14143 - 321
+    assert inv.out_of_stock_placements == 321
+    assert inv.in_stock_placements == 13822  # 14143 - 321
+    assert inv.in_stock_placements + inv.out_of_stock_placements == inv.total_placements
+    assert not hasattr(inv, "healthy_stock_placements")
+    assert not hasattr(inv, "healthy_placements")
     assert inv.stockout_rate_pct == 2.27
 
     # Exact valuation in cents

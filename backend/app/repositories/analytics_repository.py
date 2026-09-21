@@ -361,8 +361,8 @@ class AnalyticsRepository:
                 SELECT
                     COUNT(*) AS total_placements,
                     COALESCE(SUM(i.stock_on_hand), 0) AS total_units_on_hand,
-                    COALESCE(SUM(CASE WHEN i.stock_on_hand = 0 THEN 1 ELSE 0 END), 0) AS zero_stock_placements,
-                    COALESCE(SUM(CASE WHEN i.stock_on_hand > 0 THEN 1 ELSE 0 END), 0) AS healthy_stock_placements,
+                    COALESCE(SUM(CASE WHEN i.stock_on_hand = 0 THEN 1 ELSE 0 END), 0) AS out_of_stock_placements,
+                    COALESCE(SUM(CASE WHEN i.stock_on_hand > 0 THEN 1 ELSE 0 END), 0) AS in_stock_placements,
                     COALESCE(SUM(i.stock_on_hand * p.product_cost_cents), 0) AS total_cost_value_cents,
                     COALESCE(SUM(i.stock_on_hand * p.product_price_cents), 0) AS total_retail_value_cents
                 FROM external_inventory i
@@ -373,11 +373,11 @@ class AnalyticsRepository:
             cost_val = res.get("total_cost_value_cents", 0)
             retail_val = res.get("total_retail_value_cents", 0)
             total_placements = res.get("total_placements", 0)
-            zero_stock = res.get("zero_stock_placements", 0)
+            out_of_stock = res.get("out_of_stock_placements", 0)
 
             potential_margin = retail_val - cost_val
             potential_margin_pct = round((potential_margin / retail_val * 100.0), 2) if retail_val > 0 else 0.0
-            stockout_rate = round((zero_stock / total_placements * 100.0), 2) if total_placements > 0 else 0.0
+            stockout_rate = round((out_of_stock / total_placements * 100.0), 2) if total_placements > 0 else 0.0
 
             res["potential_gross_margin_cents"] = potential_margin
             res["potential_gross_margin_pct"] = potential_margin_pct
