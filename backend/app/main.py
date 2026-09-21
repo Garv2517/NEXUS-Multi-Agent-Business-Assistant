@@ -15,7 +15,8 @@ from .api import (
     inventory_router,
     hr_router,
     activity_router,
-    analytics_router
+    analytics_router,
+    risk_router
 )
 
 # Configure basic logging
@@ -67,6 +68,7 @@ app.include_router(inventory_router)
 app.include_router(hr_router)
 app.include_router(activity_router)
 app.include_router(analytics_router)
+app.include_router(risk_router)
 
 
 @app.get("/", tags=["Root"])

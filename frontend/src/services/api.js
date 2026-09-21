@@ -364,3 +364,69 @@ export async function getAnalyticsInventoryProducts(params = {}) {
   return await apiRequest(`/api/analytics/inventory/products${qs ? `?${qs}` : ''}`);
 }
 
+// ===========================================================================
+// RISK API ENDPOINTS — D2B
+// ===========================================================================
+
+/**
+ * GET /api/risk/config
+ */
+export async function getRiskConfig() {
+  return await apiRequest("/api/risk/config");
+}
+
+/**
+ * GET /api/risk/overview
+ */
+export async function getRiskOverview() {
+  return await apiRequest("/api/risk/overview");
+}
+
+/**
+ * GET /api/risk/stockouts
+ */
+export async function getRiskStockouts() {
+  return await apiRequest("/api/risk/stockouts");
+}
+
+/**
+ * GET /api/risk/inventory-pressure
+ * @param {Object} [params] - { limit, classification }
+ */
+export async function getRiskInventoryPressure(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  if (params.classification) query.append("classification", params.classification);
+  const qs = query.toString();
+  return await apiRequest(`/api/risk/inventory-pressure${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/risk/slow-moving
+ * @param {Object} [params] - { limit }
+ */
+export async function getRiskSlowMoving(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  const qs = query.toString();
+  return await apiRequest(`/api/risk/slow-moving${qs ? `?${qs}` : ''}`);
+}
+
+/**
+ * GET /api/risk/concentration
+ */
+export async function getRiskConcentration() {
+  return await apiRequest("/api/risk/concentration");
+}
+
+/**
+ * GET /api/risk/sales-velocity
+ * @param {Object} [params] - { limit, classification }
+ */
+export async function getRiskSalesVelocity(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  if (params.classification) query.append("classification", params.classification);
+  const qs = query.toString();
+  return await apiRequest(`/api/risk/sales-velocity${qs ? `?${qs}` : ''}`);
+}

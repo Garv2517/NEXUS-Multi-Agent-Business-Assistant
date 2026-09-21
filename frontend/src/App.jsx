@@ -9,6 +9,7 @@ import { HR } from './pages/HR';
 import { Activity } from './pages/Activity';
 import { About } from './pages/About';
 import { BusinessPerformance } from './pages/BusinessPerformance';
+import { InsightsAndRisk } from './pages/InsightsAndRisk';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route index element={<Overview />} />
         <Route path="assistant" element={<Assistant />} />
         <Route path="performance" element={<BusinessPerformance />} />
+        <Route path="risk" element={<InsightsAndRisk />} />
         <Route path="sales" element={<Sales />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="hr" element={<HR />} />

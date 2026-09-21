@@ -453,3 +453,476 @@ class AnalyticsRepository:
             cursor = conn.cursor()
             cursor.execute(query, params)
             return [dict(r) for r in cursor.fetchall()]
+
+    # =========================================================================
+    # Phase D2: Risk Management Query Methods
+    # =========================================================================
+
+    def get_stockout_exposure_data(self, sample_limit: int = 50) -> Dict[str, Any]:
+        """
+        Calculates descriptive stockout exposure facts across zero-stock placements.
+        Returns summary metrics, top affected products, top affected stores,
+        and sample placements.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Macro company total revenue for share calculation
+            cursor.execute("""
+                SELECT COALESCE(SUM(s.units * p.product_price_cents), 0)
+                FROM external_sales s
+                JOIN external_products p ON s.product_id = p.product_id
+            """)
+            company_total_rev = cursor.fetchone()[0]
+
+            # 2. Overall stockout summary
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_placements,
+                    SUM(CASE WHEN i.stock_on_hand = 0 THEN 1 ELSE 0 END) as zero_stock_placements,
+                    COUNT(DISTINCT CASE WHEN i.stock_on_hand = 0 THEN i.product_id END) as affected_products,
+                    COUNT(DISTINCT CASE WHEN i.stock_on_hand = 0 THEN i.store_id END) as affected_stores,
+                    COUNT(DISTINCT CASE WHEN i.stock_on_hand = 0 THEN p.product_category END) as affected_categories
+                FROM external_inventory i
+                JOIN external_products p ON i.product_id = p.product_id
+            """)
+            counts = cursor.fetchone()
+
+            # 3. Historical volume and financials on current zero-stock placements
+            cursor.execute("""
+                SELECT
+                    COALESCE(SUM(s.units), 0) as hist_units,
+                    COALESCE(SUM(s.units * p.product_price_cents), 0) as hist_rev_cents,
+                    COALESCE(SUM(s.units * (p.product_price_cents - p.product_cost_cents)), 0) as hist_profit_cents
+                FROM external_inventory i
+                JOIN external_products p ON i.product_id = p.product_id
+                JOIN external_sales s ON i.store_id = s.store_id AND i.product_id = s.product_id
+                WHERE i.stock_on_hand = 0
+            """)
+            fin = cursor.fetchone()
+            hist_rev = fin[1]
+            rev_share_pct = round((hist_rev / company_total_rev * 100.0), 4) if company_total_rev > 0 else 0.0
+
+            summary = {
+                "total_placements": counts[0],
+                "zero_stock_placements": counts[1],
+                "affected_products_count": counts[2],
+                "affected_stores_count": counts[3],
+                "affected_categories_count": counts[4],
+                "historical_units_sold": fin[0],
+                "historical_revenue_associated_cents": hist_rev,
+                "historical_gross_profit_associated_cents": fin[2],
+                "historical_revenue_share_pct": rev_share_pct,
+                "currency_code": "USD",
+                "wording_note": (
+                    "Historical revenue associated with current zero-stock placements. "
+                    "The snapshot does not prove lost sales or unfulfilled demand."
+                )
+            }
+
+            # 4. Top affected products by historical revenue associated
+            cursor.execute("""
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.product_category as category,
+                    COUNT(DISTINCT i.store_id) as zero_stock_stores,
+                    COALESCE(SUM(s.units), 0) as historical_units_sold,
+                    COALESCE(SUM(s.units * p.product_price_cents), 0) as historical_revenue_cents
+                FROM external_inventory i
+                JOIN external_products p ON i.product_id = p.product_id
+                LEFT JOIN external_sales s ON i.store_id = s.store_id AND i.product_id = s.product_id
+                WHERE i.stock_on_hand = 0
+                GROUP BY p.product_id
+                ORDER BY historical_revenue_cents DESC
+                LIMIT 10
+            """)
+            top_products = [dict(r) for r in cursor.fetchall()]
+
+            # 5. Top affected stores by count of zero-stock products
+            cursor.execute("""
+                SELECT
+                    st.store_id,
+                    st.store_name,
+                    st.store_location,
+                    st.store_city,
+                    COUNT(DISTINCT i.product_id) as zero_stock_products_count,
+                    COALESCE(SUM(s.units), 0) as historical_units_sold,
+                    COALESCE(SUM(s.units * p.product_price_cents), 0) as historical_revenue_cents
+                FROM external_inventory i
+                JOIN external_stores st ON i.store_id = st.store_id
+                JOIN external_products p ON i.product_id = p.product_id
+                LEFT JOIN external_sales s ON i.store_id = s.store_id AND i.product_id = s.product_id
+                WHERE i.stock_on_hand = 0
+                GROUP BY st.store_id
+                ORDER BY zero_stock_products_count DESC, historical_revenue_cents DESC
+                LIMIT 10
+            """)
+            top_stores = [dict(r) for r in cursor.fetchall()]
+
+            # 6. Sample zero-stock placements
+            cursor.execute("""
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.product_category as category,
+                    st.store_id,
+                    st.store_name,
+                    st.store_location,
+                    st.store_city,
+                    i.stock_on_hand,
+                    COALESCE(SUM(s.units), 0) as historical_units_sold,
+                    COALESCE(SUM(s.units * p.product_price_cents), 0) as historical_revenue_associated_cents,
+                    COALESCE(SUM(s.units * (p.product_price_cents - p.product_cost_cents)), 0) as historical_gross_profit_associated_cents
+                FROM external_inventory i
+                JOIN external_products p ON i.product_id = p.product_id
+                JOIN external_stores st ON i.store_id = st.store_id
+                LEFT JOIN external_sales s ON i.store_id = s.store_id AND i.product_id = s.product_id
+                WHERE i.stock_on_hand = 0
+                GROUP BY i.store_id, i.product_id
+                ORDER BY historical_revenue_associated_cents DESC
+                LIMIT ?
+            """, (sample_limit,))
+            sample_placements = [dict(r) for r in cursor.fetchall()]
+
+            return {
+                "summary": summary,
+                "top_affected_products": top_products,
+                "top_affected_stores": top_stores,
+                "sample_placements": sample_placements
+            }
+
+    def get_inventory_pressure_data(self, limit: int = 100, category: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieves placement-level stock, annual sales velocity, Days of Supply,
+        and inventory capital valuation.
+        """
+        query = """
+            SELECT
+                p.product_id,
+                p.product_name,
+                p.product_category as category,
+                st.store_id,
+                st.store_name,
+                st.store_location,
+                i.stock_on_hand,
+                COALESCE(SUM(s.units), 0) as annual_units_sold,
+                ROUND(COALESCE(SUM(s.units), 0) / 365.0, 4) as daily_velocity,
+                CASE
+                    WHEN i.stock_on_hand = 0 THEN 0.0
+                    WHEN COALESCE(SUM(s.units), 0) = 0 THEN NULL
+                    ELSE ROUND(i.stock_on_hand / (COALESCE(SUM(s.units), 0) / 365.0), 2)
+                END as days_of_supply,
+                i.stock_on_hand * p.product_cost_cents as inventory_cost_cents,
+                i.stock_on_hand * p.product_price_cents as inventory_retail_cents
+            FROM external_inventory i
+            JOIN external_products p ON i.product_id = p.product_id
+            JOIN external_stores st ON i.store_id = st.store_id
+            LEFT JOIN external_sales s ON i.store_id = s.store_id AND i.product_id = s.product_id
+        """
+        params: List[Any] = []
+        if category:
+            query += " WHERE p.product_category = ?"
+            params.append(category)
+
+        query += " GROUP BY i.store_id, i.product_id ORDER BY days_of_supply ASC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_product_days_of_supply_data(self, limit: int = 180, category: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieves product-level aggregate Days of Supply across all 120 stores.
+        """
+        query = """
+            SELECT
+                p.product_id,
+                p.product_name,
+                p.product_category as category,
+                COALESCE(inv.stock, 0) as stock_units,
+                COALESCE(sales.units, 0) as annual_units_sold,
+                ROUND(COALESCE(sales.units, 0) / 365.0, 4) as average_daily_velocity,
+                CASE
+                    WHEN COALESCE(inv.stock, 0) = 0 THEN 0.0
+                    WHEN COALESCE(sales.units, 0) = 0 THEN NULL
+                    ELSE ROUND(COALESCE(inv.stock, 0) / (COALESCE(sales.units, 0) / 365.0), 2)
+                END as days_of_supply,
+                COALESCE(inv.stock, 0) * p.product_cost_cents as inventory_cost_value_cents,
+                COALESCE(inv.stock, 0) * p.product_price_cents as inventory_retail_value_cents
+            FROM external_products p
+            LEFT JOIN (SELECT product_id, SUM(stock_on_hand) as stock FROM external_inventory GROUP BY product_id) inv ON p.product_id = inv.product_id
+            LEFT JOIN (SELECT product_id, SUM(units) as units FROM external_sales GROUP BY product_id) sales ON p.product_id = sales.product_id
+        """
+        params: List[Any] = []
+        if category:
+            query += " WHERE p.product_category = ?"
+            params.append(category)
+
+        query += " ORDER BY days_of_supply ASC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_slow_moving_candidates_data(self) -> Dict[str, Any]:
+        """
+        Retrieves raw data for both product-level and placement-level slow-moving inventory.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Product-level continuous metrics
+            cursor.execute("""
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.product_category as category,
+                    COALESCE(inv.stock, 0) as stock_units,
+                    COALESCE(sales.units, 0) as annual_units_sold,
+                    ROUND(COALESCE(sales.units, 0) / 365.0, 4) as average_daily_velocity,
+                    CASE
+                        WHEN COALESCE(inv.stock, 0) = 0 THEN 0.0
+                        WHEN COALESCE(sales.units, 0) = 0 THEN NULL
+                        ELSE ROUND(COALESCE(inv.stock, 0) / (COALESCE(sales.units, 0) / 365.0), 2)
+                    END as days_of_supply,
+                    COALESCE(inv.stock, 0) * p.product_cost_cents as inventory_cost_value_cents,
+                    COALESCE(inv.stock, 0) * p.product_price_cents as inventory_retail_value_cents
+                FROM external_products p
+                LEFT JOIN (SELECT product_id, SUM(stock_on_hand) as stock FROM external_inventory GROUP BY product_id) inv ON p.product_id = inv.product_id
+                LEFT JOIN (SELECT product_id, SUM(units) as units FROM external_sales GROUP BY product_id) sales ON p.product_id = sales.product_id
+                ORDER BY days_of_supply DESC
+            """)
+            products = [dict(r) for r in cursor.fetchall()]
+
+            # 2. Placement-level continuous metrics
+            cursor.execute("""
+                SELECT
+                    st.store_id,
+                    st.store_name,
+                    st.store_location,
+                    p.product_id,
+                    p.product_name,
+                    p.product_category as category,
+                    i.stock_on_hand,
+                    COALESCE(SUM(s.units), 0) as annual_units_sold,
+                    ROUND(COALESCE(SUM(s.units), 0) / 365.0, 4) as average_daily_velocity,
+                    CASE
+                        WHEN i.stock_on_hand = 0 THEN 0.0
+                        WHEN COALESCE(SUM(s.units), 0) = 0 THEN NULL
+                        ELSE ROUND(i.stock_on_hand / (COALESCE(SUM(s.units), 0) / 365.0), 2)
+                    END as days_of_supply,
+                    i.stock_on_hand * p.product_cost_cents as inventory_cost_value_cents
+                FROM external_inventory i
+                JOIN external_products p ON i.product_id = p.product_id
+                JOIN external_stores st ON i.store_id = st.store_id
+                LEFT JOIN external_sales s ON i.store_id = s.store_id AND i.product_id = s.product_id
+                GROUP BY i.store_id, i.product_id
+                ORDER BY days_of_supply DESC
+            """)
+            placements = [dict(r) for r in cursor.fetchall()]
+
+            return {
+                "products": products,
+                "placements": placements
+            }
+
+    def get_portfolio_concentration_data(self) -> Dict[str, Any]:
+        """
+        Calculates internal revenue distribution and HHI for Products, Categories, and Stores.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Total sales revenue in minor units
+            cursor.execute("""
+                SELECT COALESCE(SUM(s.units * p.product_price_cents), 0)
+                FROM external_sales s
+                JOIN external_products p ON s.product_id = p.product_id
+            """)
+            total_rev = cursor.fetchone()[0]
+
+            def calc_dimension(group_col: str, name_col: str, join_extra: str = "") -> Dict[str, Any]:
+                cursor.execute(f"""
+                    SELECT {group_col}, {name_col}, SUM(s.units * p.product_price_cents) as rev
+                    FROM external_sales s
+                    JOIN external_products p ON s.product_id = p.product_id
+                    {join_extra}
+                    GROUP BY {group_col}
+                    ORDER BY rev DESC
+                """)
+                rows = cursor.fetchall()
+                n = len(rows)
+                shares = [(r[0], r[1], (r[2] / total_rev) * 100.0) for r in rows]
+
+                top1_share = round(shares[0][2], 4)
+                top1_name = str(shares[0][1])
+                top5_share = round(sum(s[2] for s in shares[:5]), 4) if n >= 5 else round(sum(s[2] for s in shares), 4)
+                top10_share = round(sum(s[2] for s in shares[:10]), 4) if n >= 10 else None
+
+                hhi = round(sum(s[2] ** 2 for s in shares), 4)
+                equal_hhi = round(10000.0 / n, 4)
+                ratio = round(hhi / equal_hhi, 4)
+                norm_hhi = round((hhi - equal_hhi) / (10000.0 - equal_hhi), 6)
+
+                return {
+                    "entity_count": n,
+                    "top_1_share_pct": top1_share,
+                    "top_1_entity_name": top1_name,
+                    "top_5_share_pct": top5_share,
+                    "top_10_share_pct": top10_share,
+                    "hhi": hhi,
+                    "equal_share_hhi": equal_hhi,
+                    "hhi_to_equal_ratio": ratio,
+                    "normalized_hhi": norm_hhi
+                }
+
+            products = calc_dimension("p.product_id", "p.product_name")
+            products["entity_type"] = "Products"
+            products["explanation"] = (
+                f"Product revenue is distributed across {products['entity_count']} items with HHI {products['hhi']:.2f}. "
+                f"The HHI-to-equal ratio of {products['hhi_to_equal_ratio']:.2f} confirms broad catalog diversification."
+            )
+
+            categories = calc_dimension("p.product_category", "p.product_category")
+            categories["entity_type"] = "Categories"
+            categories["explanation"] = (
+                f"Revenue spans {categories['entity_count']} retail categories with HHI {categories['hhi']:.2f}. "
+                f"Top category '{categories['top_1_entity_name']}' holds {categories['top_1_share_pct']:.1f}% share."
+            )
+
+            stores = calc_dimension("s.store_id", "st.store_name", "JOIN external_stores st ON s.store_id = st.store_id")
+            stores["entity_type"] = "Stores"
+            stores["explanation"] = (
+                f"Sales are distributed across {stores['entity_count']} retail locations with near-uniform HHI {stores['hhi']:.2f}. "
+                f"The HHI-to-equal ratio of {stores['hhi_to_equal_ratio']:.2f} indicates zero store dependency."
+            )
+
+            return {
+                "products": products,
+                "categories": categories,
+                "stores": stores
+            }
+
+    def get_sales_velocity_comparison_data(
+        self,
+        recent_start: str,
+        recent_end: str,
+        prior_start: str,
+        prior_end: str
+    ) -> Dict[str, Any]:
+        """
+        Calculates sales volume and revenue comparison across consecutive windows
+        for company total, each of the 16 categories, and all 180 products.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Company total velocity
+            cursor.execute(f"""
+                SELECT
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{recent_start}' AND '{recent_end}' THEN units ELSE 0 END), 0) as rec_u,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{prior_start}' AND '{prior_end}' THEN units ELSE 0 END), 0) as pri_u,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{recent_start}' AND '{recent_end}' THEN units * p.product_price_cents ELSE 0 END), 0) as rec_rev,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{prior_start}' AND '{prior_end}' THEN units * p.product_price_cents ELSE 0 END), 0) as pri_rev
+                FROM external_sales s
+                JOIN external_products p ON s.product_id = p.product_id
+            """)
+            c_row = cursor.fetchone()
+            rec_u, pri_u, rec_rev, pri_rev = c_row
+            diff_u = rec_u - pri_u
+            pct_u = round((diff_u / pri_u * 100.0), 4) if pri_u > 0 else 0.0
+            diff_rev = rec_rev - pri_rev
+            pct_rev = round((diff_rev / pri_rev * 100.0), 4) if pri_rev > 0 else 0.0
+
+            company = {
+                "prior_28d_units": pri_u,
+                "recent_28d_units": rec_u,
+                "unit_change": diff_u,
+                "change_pct": pct_u,
+                "prior_28d_revenue_cents": pri_rev,
+                "recent_28d_revenue_cents": rec_rev,
+                "revenue_change_pct": pct_rev,
+                "classification": "Stable",
+                "currency_code": "USD"
+            }
+
+            # 2. Category velocity (16 categories)
+            cursor.execute(f"""
+                SELECT
+                    p.product_category as category,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{recent_start}' AND '{recent_end}' THEN units ELSE 0 END), 0) as rec_u,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{prior_start}' AND '{prior_end}' THEN units ELSE 0 END), 0) as pri_u,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{recent_start}' AND '{recent_end}' THEN units * p.product_price_cents ELSE 0 END), 0) as rec_rev,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{prior_start}' AND '{prior_end}' THEN units * p.product_price_cents ELSE 0 END), 0) as pri_rev
+                FROM external_sales s
+                JOIN external_products p ON s.product_id = p.product_id
+                GROUP BY p.product_category
+                ORDER BY p.product_category
+            """)
+            categories = []
+            for r in cursor.fetchall():
+                cat_name, c_rec_u, c_pri_u, c_rec_rev, c_pri_rev = r
+                c_diff_u = c_rec_u - c_pri_u
+                c_pct_u = round((c_diff_u / c_pri_u * 100.0), 2) if c_pri_u > 0 else 0.0
+                c_diff_rev = c_rec_rev - c_pri_rev
+                c_pct_rev = round((c_diff_rev / c_pri_rev * 100.0), 2) if c_pri_rev > 0 else 0.0
+                categories.append({
+                    "category": cat_name,
+                    "prior_28d_units": c_pri_u,
+                    "recent_28d_units": c_rec_u,
+                    "unit_change": c_diff_u,
+                    "change_pct": c_pct_u,
+                    "prior_28d_revenue_cents": c_pri_rev,
+                    "recent_28d_revenue_cents": c_rec_rev,
+                    "revenue_change_pct": c_pct_rev,
+                    "classification": "Stable",
+                    "currency_code": "USD"
+                })
+
+            # 3. Product velocity (180 products)
+            cursor.execute(f"""
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.product_category as category,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{recent_start}' AND '{recent_end}' THEN units ELSE 0 END), 0) as rec_u,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{prior_start}' AND '{prior_end}' THEN units ELSE 0 END), 0) as pri_u,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{recent_start}' AND '{recent_end}' THEN units * p.product_price_cents ELSE 0 END), 0) as rec_rev,
+                    COALESCE(SUM(CASE WHEN sale_date BETWEEN '{prior_start}' AND '{prior_end}' THEN units * p.product_price_cents ELSE 0 END), 0) as pri_rev
+                FROM external_sales s
+                JOIN external_products p ON s.product_id = p.product_id
+                GROUP BY p.product_id
+                ORDER BY p.product_id
+            """)
+            products = []
+            for r in cursor.fetchall():
+                pid, pname, pcat, p_rec_u, p_pri_u, p_rec_rev, p_pri_rev = r
+                p_diff_u = p_rec_u - p_pri_u
+                p_pct_u = round((p_diff_u / p_pri_u * 100.0), 2) if p_pri_u > 0 else None
+                p_diff_rev = p_rec_rev - p_pri_rev
+                p_pct_rev = round((p_diff_rev / p_pri_rev * 100.0), 2) if p_pri_rev > 0 else None
+                products.append({
+                    "product_id": pid,
+                    "product_name": pname,
+                    "category": pcat,
+                    "prior_28d_units": p_pri_u,
+                    "recent_28d_units": p_rec_u,
+                    "unit_change": p_diff_u,
+                    "change_pct": p_pct_u,
+                    "prior_28d_revenue_cents": p_pri_rev,
+                    "recent_28d_revenue_cents": p_rec_rev,
+                    "revenue_change_pct": p_pct_rev,
+                    "currency_code": "USD"
+                })
+
+            return {
+                "company": company,
+                "categories": categories,
+                "products": products
+            }
+

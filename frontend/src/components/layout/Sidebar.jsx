@@ -11,7 +11,8 @@ import {
   Sparkles,
   Layers,
   Info,
-  BarChart3
+  BarChart3,
+  ShieldAlert
 } from 'lucide-react';
 
 const WORKSPACE_ITEMS = [
@@ -25,6 +26,7 @@ const WORKSPACE_ITEMS = [
 const INTELLIGENCE_ITEMS = [
   { path: '/assistant', label: 'Assistant', icon: Bot, badge: 'Live' },
   { path: '/performance', label: 'Business Performance', icon: BarChart3, badge: 'USD' },
+  { path: '/risk', label: 'Insights & Risk', icon: ShieldAlert, badge: 'RISK' },
 ];
 
 export function Sidebar({ isMobileOpen, onCloseMobile }) {
@@ -112,7 +114,9 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
                         <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
                           item.badge === 'USD'
                             ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
-                            : 'bg-[#433bff]/30 border border-[#433bff]/40 text-[#dedcff]'
+                            : item.badge === 'RISK'
+                              ? 'bg-rose-950/60 border border-rose-500/40 text-rose-300'
+                              : 'bg-[#433bff]/30 border border-[#433bff]/40 text-[#dedcff]'
                         }`}>
                           {item.badge}
                         </span>
