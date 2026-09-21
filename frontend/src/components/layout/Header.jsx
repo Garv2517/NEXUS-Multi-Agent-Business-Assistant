@@ -8,7 +8,8 @@ const ROUTE_TITLES = {
   '/sales': 'Sales Intelligence',
   '/inventory': 'Inventory Management',
   '/hr': 'People Management',
-  '/activity': 'AI Activity & Audit Logs'
+  '/activity': 'AI Activity & Audit Logs',
+  '/about': 'About Nexus'
 };
 
 export function Header({ onToggleMobileMenu, healthStatus }) {

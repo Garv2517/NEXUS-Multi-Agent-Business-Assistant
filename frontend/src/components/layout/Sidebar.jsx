@@ -9,7 +9,8 @@ import {
   Activity,
   X,
   Sparkles,
-  Layers
+  Layers,
+  Info
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -117,6 +118,37 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
               </NavLink>
             );
           })}
+
+          {/* Visual Separator */}
+          <div className="pt-3 pb-2 px-3">
+            <div className="h-px bg-[#1f1a54]/80 w-full" />
+          </div>
+
+          {/* About Nexus NavLink */}
+          <NavLink
+            to="/about"
+            onClick={onCloseMobile}
+            className={({ isActive }) =>
+              `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${
+                isActive
+                  ? 'bg-[#2f27ce]/25 border border-[#433bff]/40 text-[#fbfbfe] shadow-card-glow'
+                  : 'text-slate-300 hover:text-white hover:bg-[#130f3b]/50 border border-transparent'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <div className="flex items-center gap-3">
+                <Info
+                  className={`w-4 h-4 transition-colors ${
+                    isActive
+                      ? 'text-[#dedcff]'
+                      : 'text-slate-400 group-hover:text-slate-200'
+                  }`}
+                />
+                <span>About Nexus</span>
+              </div>
+            )}
+          </NavLink>
         </div>
 
         {/* Footer info: Multi-Agent Model Mesh */}

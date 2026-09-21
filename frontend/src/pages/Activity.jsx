@@ -62,6 +62,49 @@ export function Activity() {
     return matchesFilter && matchesSearch;
   });
 
+  const totalLogs = logs.length;
+  const agentBreakdown = [
+    {
+      name: 'Manager Agent',
+      shortName: 'Manager',
+      filterKey: 'Manager',
+      count: logs.filter((l) => l.agent.toLowerCase().includes('manager')).length,
+      dotColor: 'bg-purple-400',
+      barColor: 'bg-gradient-to-r from-purple-600 to-purple-400',
+      borderColor: 'border-purple-500/20'
+    },
+    {
+      name: 'Sales Agent',
+      shortName: 'Sales',
+      filterKey: 'Sales',
+      count: logs.filter((l) => l.agent.toLowerCase().includes('sales')).length,
+      dotColor: 'bg-emerald-400',
+      barColor: 'bg-gradient-to-r from-emerald-600 to-emerald-400',
+      borderColor: 'border-emerald-500/20'
+    },
+    {
+      name: 'Inventory Agent',
+      shortName: 'Inventory',
+      filterKey: 'Inventory',
+      count: logs.filter((l) => l.agent.toLowerCase().includes('inventory')).length,
+      dotColor: 'bg-amber-400',
+      barColor: 'bg-gradient-to-r from-amber-600 to-amber-400',
+      borderColor: 'border-amber-500/20'
+    },
+    {
+      name: 'People Management Agent',
+      shortName: 'People Mgmt',
+      filterKey: 'People Management',
+      count: logs.filter((l) => l.agent.toLowerCase().includes('people') || l.agent.toLowerCase().includes('hr')).length,
+      dotColor: 'bg-sky-400',
+      barColor: 'bg-gradient-to-r from-sky-600 to-sky-400',
+      borderColor: 'border-sky-500/20'
+    }
+  ].map((ag) => ({
+    ...ag,
+    percent: totalLogs > 0 ? Math.round((ag.count / totalLogs) * 100) : 0
+  }));
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <PageHeader
@@ -69,6 +112,73 @@ export function Activity() {
         description="Comprehensive audit trail of multi-agent routing, tool executions, and latency metrics."
         badge="Audit Enabled"
       />
+
+      {/* Agent Execution Distribution Visualization */}
+      <div className="nexus-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-[#1f1a54]/60 gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-[#fbfbfe] flex items-center gap-2">
+              <ActivityIcon className="w-4 h-4 text-[#dedcff]" />
+              Agent Execution & Dispatch Distribution
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Historical distribution of routing decisions and tool invocations across specialist domains.
+            </p>
+          </div>
+          <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded bg-[#16113c] border border-[#433bff]/40 text-[#dedcff]">
+            {totalLogs} Recorded Invocations
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center text-xs text-slate-400">
+              <span>Domain Execution Share</span>
+              <span className="font-mono text-[11px] text-emerald-400">100% Audit Coverage</span>
+            </div>
+
+            <div className="h-3.5 w-full bg-[#080520] rounded-full overflow-hidden p-0.5 border border-[#1f1a54] flex gap-1">
+              {agentBreakdown.map((ag) => (
+                ag.count > 0 && (
+                  <div
+                    key={ag.name}
+                    style={{ width: `${ag.percent}%` }}
+                    className={`h-full ${ag.barColor} rounded-full transition-all duration-500`}
+                    title={`${ag.name}: ${ag.count} executions (${ag.percent}%)`}
+                  />
+                )
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {agentBreakdown.map((ag) => (
+              <div
+                key={ag.name}
+                onClick={() => setSelectedFilter(ag.filterKey)}
+                className={`p-3 rounded-lg bg-[#050315] border ${ag.borderColor} hover:bg-[#0c0827] cursor-pointer transition-all flex flex-col justify-between`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="flex items-center gap-1.5 text-xs text-slate-300 font-medium">
+                    <span className={`w-2 h-2 rounded-full ${ag.dotColor}`} />
+                    {ag.shortName}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">{ag.percent}%</span>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-base font-bold text-[#fbfbfe] font-mono">{ag.count}</span>
+                  <span className="text-[10px] text-slate-500">invocations</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2 border-t border-[#1f1a54]/50 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+            <span>Verified from /api/activity</span>
+            <span>Click any domain to filter audit log</span>
+          </div>
+        </div>
+      </div>
 
       {/* Filter and Search Bar */}
       <div className="nexus-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

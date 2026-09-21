@@ -109,6 +109,96 @@ export function HR() {
         />
       </div>
 
+      {/* Workforce Status Distribution Visualization */}
+      <div className="nexus-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-[#1f1a54]/60 gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-[#fbfbfe] flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#dedcff]" />
+              Workforce Status & Attendance Distribution
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Real-time headcount attendance ratio across active organizational divisions.
+            </p>
+          </div>
+          <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 border border-sky-500/30 text-sky-300">
+            Verified /api/hr
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {(() => {
+            const activeCount = Math.max(0, metrics.employees - metrics.onLeave);
+            const activePercent = metrics.employees > 0 ? ((activeCount / metrics.employees) * 100).toFixed(1) : 0;
+            const onLeavePercent = metrics.employees > 0 ? ((metrics.onLeave / metrics.employees) * 100).toFixed(1) : 0;
+
+            return (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-300 font-medium">Active Attendance Ratio</span>
+                    <span className="font-mono text-emerald-400 font-semibold">{activePercent}% Present</span>
+                  </div>
+
+                  <div className="h-3.5 w-full bg-[#080520] rounded-full overflow-hidden p-0.5 border border-[#1f1a54] flex gap-1">
+                    <div
+                      style={{ width: `${activePercent}%` }}
+                      className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                      title={`Active: ${activeCount} (${activePercent}%)`}
+                    />
+                    <div
+                      style={{ width: `${onLeavePercent}%` }}
+                      className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
+                      title={`On Leave: ${metrics.onLeave} (${onLeavePercent}%)`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="p-3 rounded-lg bg-[#050315] border border-emerald-500/20 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                      <span className="text-xs text-slate-300 font-medium">Active Workforce</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-[#fbfbfe] font-mono">{activeCount}</span>
+                      <span className="text-[10px] text-slate-400 ml-1">({activePercent}%)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#050315] border border-amber-500/20 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                      <span className="text-xs text-slate-300 font-medium">Scheduled Leave</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-[#fbfbfe] font-mono">{metrics.onLeave}</span>
+                      <span className="text-[10px] text-slate-400 ml-1">({onLeavePercent}%)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#050315] border border-sky-500/20 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                      <span className="text-xs text-slate-300 font-medium">Active Divisions</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-[#fbfbfe] font-mono">{metrics.departments}</span>
+                      <span className="text-[10px] text-slate-400 ml-1">Divisions</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[#1f1a54]/50 flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-slate-500 font-mono gap-1">
+                  <span>Census verified from /api/hr ({metrics.employees} total staff)</span>
+                  <span className="text-slate-400 italic">Grouped departmental distribution requires future backend analytics phase</span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+
       {/* People Policies Cards */}
       <div>
         <div className="flex items-center justify-between pb-3 mb-3">

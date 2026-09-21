@@ -7,6 +7,7 @@ import { Sales } from './pages/Sales';
 import { Inventory } from './pages/Inventory';
 import { HR } from './pages/HR';
 import { Activity } from './pages/Activity';
+import { About } from './pages/About';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="inventory" element={<Inventory />} />
         <Route path="hr" element={<HR />} />
         <Route path="activity" element={<Activity />} />
+        <Route path="about" element={<About />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

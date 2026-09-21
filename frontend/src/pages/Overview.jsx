@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../components/common/PageHeader';
 import { StatCard } from '../components/dashboard/StatCard';
-import { getDashboardData } from '../services/api';
+import { getDashboardData, getSalesData } from '../services/api';
+import { SalesTrendChart } from '../components/charts/SalesTrendChart';
 
 const ICON_MAP = {
   TrendingUp,
@@ -27,16 +28,26 @@ const ICON_MAP = {
 export function Overview() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [salesData, setSalesData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    getDashboardData().then((res) => {
-      if (isMounted) {
-        setData(res);
-        setLoading(false);
-      }
-    });
+    Promise.all([getDashboardData(), getSalesData()])
+      .then(([dashRes, salesRes]) => {
+        if (isMounted) {
+          setData(dashRes);
+          setSalesData(salesRes);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("Overview data load error:", err);
+          setLoading(false);
+        }
+      });
+
     return () => {
       isMounted = false;
     };
@@ -159,6 +170,29 @@ export function Overview() {
             <ArrowRight className="w-3.5 h-3.5 text-[#dedcff] group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
+      </div>
+
+      {/* Executive Revenue Trajectory Visualization */}
+      <div className="nexus-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-[#1f1a54]/60 gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-[#fbfbfe] flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[#dedcff]" />
+              Executive Revenue Trajectory (Last 6 Months)
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Verified monthly sales momentum derived directly from SQLite database records.
+            </p>
+          </div>
+          <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
+            Verified /api/sales
+          </span>
+        </div>
+
+        <SalesTrendChart
+          data={salesData?.monthlyRevenueChart || []}
+          compact={true}
+        />
       </div>
 
       {/* Two-Column Section: Recent AI Activity & Quick Prompts */}

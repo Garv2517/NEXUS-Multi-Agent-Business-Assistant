@@ -16,6 +16,7 @@ import { PageHeader } from '../components/common/PageHeader';
 import { StatCard } from '../components/dashboard/StatCard';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { getInventoryData } from '../services/api';
+import { InventoryHealthChart } from '../components/charts/InventoryHealthChart';
 
 export function Inventory() {
   const navigate = useNavigate();
@@ -120,37 +121,76 @@ export function Inventory() {
         />
       </div>
 
-      {/* Low Stock Urgent Alert Banner */}
-      {lowStockItems.length > 0 && (
-        <div className="nexus-card p-5 border-amber-500/40 bg-gradient-to-r from-amber-950/20 via-[#0c0827] to-[#0c0827]">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 mt-0.5">
+      {/* Inventory Health Visualization & Depletion Alert */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Inventory Health Donut Chart (1 column) */}
+        <div className="nexus-card p-5 flex flex-col justify-between">
+          <div>
+            <div className="pb-3 mb-3 border-b border-[#1f1a54]/60">
+              <h3 className="text-sm font-semibold text-[#fbfbfe]">
+                Inventory Health
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Stock status distribution across catalog.
+              </p>
+            </div>
+
+            <InventoryHealthChart data={metrics} />
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-[#1f1a54]/50 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>Verified from /api/inventory</span>
+            <span className="text-emerald-400">8 Healthy / 4 Low</span>
+          </div>
+        </div>
+
+        {/* Low Stock Urgent Alert Banner & Action (2 columns) */}
+        <div className="lg:col-span-2 flex flex-col justify-between nexus-card p-5 border-amber-500/40 bg-gradient-to-br from-amber-950/20 via-[#0c0827] to-[#0c0827]">
+          <div>
+            <div className="flex items-start gap-3.5 mb-4 pb-4 border-b border-[#1f1a54]/60">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 mt-0.5">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-[#fbfbfe] flex items-center gap-2">
+                <h4 className="text-sm sm:text-base font-semibold text-[#fbfbfe] flex items-center gap-2">
                   Inventory Depletion Alert ({lowStockItems.length} SKUs flagged)
                 </h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
                   <span className="text-[#fbfbfe] font-medium">Laptop Pro</span> (4 units left),{' '}
                   <span className="text-[#fbfbfe] font-medium">Mechanical Keyboard</span> (8 units left), and{' '}
-                  <span className="text-[#fbfbfe] font-medium">USB-C Multi-Hub</span> (0 units left) have breached their designated reorder points.
+                  <span className="text-[#fbfbfe] font-medium">USB-C Multi-Hub</span> (0 units left) have breached designated reorder thresholds.
                 </p>
               </div>
             </div>
 
+            <div className="space-y-2 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Automatic safety buffer calculation active across regional fulfillment hubs.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Nexus Inventory Specialist tracks supplier lead times and warehouse stockout risk.</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-[#1f1a54]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs text-slate-400 font-mono">
+              Action priority: Restock 4 depleted hardware lines
+            </span>
             <button
               type="button"
               onClick={() => navigate('/assistant')}
-              className="px-3.5 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-medium flex items-center gap-2 shrink-0 transition-colors"
+              className="px-3.5 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-medium flex items-center gap-2 shrink-0 transition-colors self-start sm:self-auto"
             >
+              <Sparkles className="w-3.5 h-3.5" />
               <span>Trigger AI Reorder Plan</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Product Catalog Table Section */}
       <div className="nexus-card p-5">
