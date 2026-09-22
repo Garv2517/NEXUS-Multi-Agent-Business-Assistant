@@ -88,12 +88,22 @@ class HRPolicy(BaseModel):
     summary: str
 
 
+class HREmployee(BaseModel):
+    id: str
+    name: str
+    department: str
+    role: str
+    status: str
+    leaveBalance: int
+
+
 class HRResponse(BaseModel):
     employeeCount: int
     employeesOnLeave: int
     departments: int
     openRequests: int
     policies: List[HRPolicy]
+    employees: List[HREmployee]
 
 
 # --- Activity Models ---

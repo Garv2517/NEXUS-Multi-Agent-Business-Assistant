@@ -59,8 +59,8 @@ export function HR() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <PageHeader
         title="People Management Overview"
-        description="Team census, active leave schedules, and organizational policies."
-        badge="Active Team"
+        description="Internal workforce census, leave schedules, and organizational policies. The Kaggle retail dataset does not contain personnel records."
+        badge="Internal HR Dataset"
         actions={
           <button
             type="button"
@@ -86,7 +86,7 @@ export function HR() {
         <StatCard
           title="On Leave"
           value={metrics.onLeave}
-          change="3 scheduled today"
+          change={`${metrics.onLeave} scheduled`}
           isWarning={true}
           timeframe="approved time off"
           icon={Calendar}
@@ -94,7 +94,7 @@ export function HR() {
         <StatCard
           title="Departments"
           value={metrics.departments}
-          change="5 active divisions"
+          change={`${metrics.departments} active divisions`}
           isNeutral={true}
           timeframe="cross-functional"
           icon={Building2}
@@ -115,10 +115,10 @@ export function HR() {
           <div>
             <h3 className="text-sm font-semibold text-[#fbfbfe] flex items-center gap-2">
               <Users className="w-4 h-4 text-[#dedcff]" />
-              Workforce Status & Attendance Distribution
+              Workforce Availability Distribution
             </h3>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Real-time headcount attendance ratio across active organizational divisions.
+              Internal headcount split between employees currently on leave and those not on leave.
             </p>
           </div>
           <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 border border-sky-500/30 text-sky-300">
@@ -136,8 +136,8 @@ export function HR() {
               <>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-300 font-medium">Active Attendance Ratio</span>
-                    <span className="font-mono text-emerald-400 font-semibold">{activePercent}% Present</span>
+                    <span className="text-slate-300 font-medium">Not-on-Leave Ratio</span>
+                    <span className="font-mono text-emerald-400 font-semibold">{activePercent}% Not on Leave</span>
                   </div>
 
                   <div className="h-3.5 w-full bg-[#080520] rounded-full overflow-hidden p-0.5 border border-[#1f1a54] flex gap-1">
@@ -158,7 +158,7 @@ export function HR() {
                   <div className="p-3 rounded-lg bg-[#050315] border border-emerald-500/20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                      <span className="text-xs text-slate-300 font-medium">Active Workforce</span>
+                      <span className="text-xs text-slate-300 font-medium">Not on Leave</span>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-bold text-[#fbfbfe] font-mono">{activeCount}</span>
@@ -191,7 +191,7 @@ export function HR() {
 
                 <div className="pt-2 border-t border-[#1f1a54]/50 flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-slate-500 font-mono gap-1">
                   <span>Census verified from /api/hr ({metrics.employees} total staff)</span>
-                  <span className="text-slate-400 italic">Grouped departmental distribution requires future backend analytics phase</span>
+                  <span className="text-slate-400 italic">Directory records are served directly from the internal HR dataset</span>
                 </div>
               </>
             );
@@ -255,10 +255,10 @@ export function HR() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-[#1f1a54]/60">
           <div>
             <h3 className="text-sm font-semibold text-[#fbfbfe]">
-              Employee Directory (Sample Data)
+              Employee Directory
             </h3>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Current active team roster and attendance statuses.
+              Searchable internal roster backed by the People Management database.
             </p>
           </div>
 
@@ -274,15 +274,15 @@ export function HR() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[460px]">
           <table className="w-full text-left text-xs">
-            <thead>
+            <thead className="sticky top-0 bg-[#0a0723] z-10">
               <tr className="border-b border-[#1f1a54]/80 text-slate-400 uppercase text-[10px] tracking-wider">
                 <th className="pb-3 font-semibold">ID</th>
                 <th className="pb-3 font-semibold">Name</th>
                 <th className="pb-3 font-semibold">Department</th>
                 <th className="pb-3 font-semibold">Role</th>
-                <th className="pb-3 font-semibold">Tenure</th>
+                <th className="pb-3 font-semibold">Leave Balance</th>
                 <th className="pb-3 font-semibold">Status</th>
               </tr>
             </thead>
@@ -302,7 +302,7 @@ export function HR() {
                     {emp.role}
                   </td>
                   <td className="py-3 font-mono text-slate-400">
-                    {emp.tenure}
+                    {emp.leaveBalance} days
                   </td>
                   <td className="py-3">
                     <StatusBadge status={emp.status} size="xs" />

@@ -1,28 +1,77 @@
-"""
-Deterministic Router for Phase B3.
-Maps user queries to discrete ExecutionPlans without LLMs or probabilistic routing.
-Small, concise, and focused strictly on the supported business intents.
+"""Deterministic fallback router for Nexus.
+
+Foundry remains the preferred live routing source when enabled. This router provides
+safe local/fallback intent selection using the same server-approved operations.
 """
 
+import re
 import uuid
-from typing import Dict, Any, List
+from typing import Dict, Any
+
 from ..agents.types import ExecutionPlan, PlanStep
 
 
+_MONTHS = {
+    "january": 1, "jan": 1,
+    "february": 2, "feb": 2,
+    "march": 3, "mar": 3,
+    "april": 4, "apr": 4,
+    "may": 5,
+    "june": 6, "jun": 6,
+    "july": 7, "jul": 7,
+    "august": 8, "aug": 8,
+    "september": 9, "sep": 9, "sept": 9,
+    "october": 10, "oct": 10,
+    "november": 11, "nov": 11,
+    "december": 12, "dec": 12,
+}
+
+
+def _sales_selectors(q: str) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    for token, month in _MONTHS.items():
+        if re.search(rf"\b{re.escape(token)}\b", q):
+            params["month"] = month
+            break
+    year_match = re.search(r"\b(20\d{2})\b", q)
+    if year_match:
+        params["year"] = int(year_match.group(1))
+    return params
+
+
+def _product_selectors(q: str) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    # External product IDs are numeric (e.g. "product 130", "product id 130").
+    pid_match = re.search(r"\bproduct(?:\s+id)?\s*#?\s*(\d{1,4})\b", q)
+    if pid_match:
+        params["product_id"] = pid_match.group(1)
+        return params
+
+    # Conservative phrase extraction for fallback mode only.
+    for prefix in ("stock level for ", "stock level of ", "current stock for ", "stock for ", "stock of ", "inventory for ", "inventory of "):
+        idx = q.find(prefix)
+        if idx >= 0:
+            candidate = q[idx + len(prefix):].strip(" ?.!")
+            if candidate and len(candidate) <= 80 and candidate not in {"products", "product", "each product"}:
+                params["product_name"] = candidate
+                break
+    return params
+
+
 class DeterministicRouter:
-    """Routes user queries deterministically to specialist agents."""
+    """Routes supported business queries to trusted specialist operations."""
 
     @staticmethod
     def route(query: str) -> ExecutionPlan:
         q = query.strip().lower()
         plan_id = f"plan_{uuid.uuid4().hex[:8]}"
 
-        # 1. Compound: Compare top-selling products with inventory
-        has_top = any(w in q for w in ["top-selling", "top selling", "top products", "top 3", "top 5"]) or \
-                  ("top" in q.split() and any(w in q for w in ["product", "products", "selling", "sellers"]))
+        # 1. Compound: compare top-selling products with current inventory.
+        has_top = any(w in q for w in ["top-selling", "top selling", "top products", "top 3", "top 5"]) or (
+            "top" in q.split() and any(w in q for w in ["product", "products", "selling", "sellers"])
+        )
         has_inv = any(w in q for w in ["stock", "inventory"])
         has_compare = "compare" in q
-
         if (has_compare and (has_inv or has_top or "product" in q)) or (has_top and has_inv):
             return ExecutionPlan(
                 plan_id=plan_id,
@@ -30,26 +79,12 @@ class DeterministicRouter:
                 query=query,
                 agents=["sales", "inventory"],
                 steps=[
-                    PlanStep(
-                        step=1,
-                        agent="sales",
-                        operation="sales.top_products",
-                        parameters={"limit": 3},
-                        description="Retrieve top 3 selling products"
-                    ),
-                    PlanStep(
-                        step=2,
-                        agent="inventory",
-                        operation="inventory.product_stock",
-                        parameters={},
-                        depends_on=1,
-                        description="Check current inventory stock for each top product"
-                    )
-                ]
+                    PlanStep(step=1, agent="sales", operation="sales.top_products", parameters={"limit": 3}, description="Retrieve top 3 selling products"),
+                    PlanStep(step=2, agent="inventory", operation="inventory.product_stock", parameters={}, depends_on=1, description="Check current inventory stock for each top product"),
+                ],
             )
 
-
-        # 2. Compound: Business Overview (Sales + Inventory + HR)
+        # 2. Business overview combines unified retail analytics + internal people data.
         if "overview" in q or "company status" in q or "business summary" in q:
             return ExecutionPlan(
                 plan_id=plan_id,
@@ -57,101 +92,57 @@ class DeterministicRouter:
                 query=query,
                 agents=["sales", "inventory", "hr"],
                 steps=[
-                    PlanStep(
-                        step=1,
-                        agent="sales",
-                        operation="sales.total",
-                        parameters={"month": 9, "year": 2026},
-                        description="Retrieve current monthly sales performance"
-                    ),
-                    PlanStep(
-                        step=2,
-                        agent="inventory",
-                        operation="inventory.summary",
-                        parameters={},
-                        description="Retrieve inventory health breakdown"
-                    ),
-                    PlanStep(
-                        step=3,
-                        agent="hr",
-                        operation="hr.summary",
-                        parameters={},
-                        description="Retrieve workforce headcount and leave metrics"
-                    )
-                ]
+                    PlanStep(step=1, agent="sales", operation="sales.total", parameters={}, description="Retrieve full-period sales performance"),
+                    PlanStep(step=2, agent="inventory", operation="inventory.summary", parameters={}, description="Retrieve inventory snapshot summary"),
+                    PlanStep(step=3, agent="hr", operation="hr.summary", parameters={}, description="Retrieve workforce headcount and leave metrics"),
+                ],
             )
 
-        # 3. Single-Agent: Sales
-        if any(w in q for w in ["revenue", "sales", "top-selling", "top selling", "trend", "order", "units sold"]):
+        # 3. Sales.
+        if any(w in q for w in ["revenue", "sales", "selling", "top products", "top-selling", "top selling", "trend", "order", "units sold"]):
             if "trend" in q:
-                op = "sales.trend"
-                params = {}
+                op, params = "sales.trend", {}
             elif "top" in q:
-                op = "sales.top_products"
-                params = {"limit": 3, "month": 9, "year": 2026}
-            elif "month" in q:
-                op = "sales.monthly"
-                params = {"month": 9, "year": 2026}
+                limit_match = re.search(r"\btop\s+(\d{1,2})\b", q)
+                limit = min(max(int(limit_match.group(1)), 1), 20) if limit_match else 3
+                op, params = "sales.top_products", {"limit": limit}
+            elif "month" in q or any(re.search(rf"\b{m}\b", q) for m in _MONTHS):
+                op, params = "sales.monthly", _sales_selectors(q)
             else:
-                op = "sales.total"
-                params = {"month": 9, "year": 2026}
+                op, params = "sales.total", {}
 
             return ExecutionPlan(
                 plan_id=plan_id,
                 intent="sales",
                 query=query,
                 agents=["sales"],
-                steps=[
-                    PlanStep(
-                        step=1,
-                        agent="sales",
-                        operation=op,
-                        parameters=params,
-                        description="Execute sales specialist operation"
-                    )
-                ]
+                steps=[PlanStep(step=1, agent="sales", operation=op, parameters=params, description="Execute sales specialist operation")],
             )
 
-        # 4. Single-Agent: Inventory
+        # 4. Inventory. The external dataset has no reorder levels; "low stock" maps
+        # to calibrated inventory pressure / stockout analysis in live analytics mode.
         if any(w in q for w in ["stock", "inventory", "reorder", "depleted", "warehouse", "catalog"]):
-            if any(w in q for w in ["low", "reorder", "depleted", "need"]):
-                op = "inventory.low_stock"
-                params = {}
-            elif any(p in q for p in ["laptop", "mouse", "keyboard", "headset", "webcam", "p101", "p102", "p103"]):
-                op = "inventory.product_stock"
-                p_name = "Laptop Pro" if "laptop" in q else ("Wireless Headset" if "headset" in q else ("Mechanical Keyboard" if "keyboard" in q else None))
-                p_id = "P101" if "p101" in q else ("P102" if "p102" in q else ("P103" if "p103" in q else None))
-                params = {}
-                if p_name:
-                    params["product_name"] = p_name
-                if p_id:
-                    params["product_id"] = p_id
+            if any(w in q for w in ["low", "reorder", "depleted", "need", "out of stock", "stockout", "pressure"]):
+                op, params = "inventory.low_stock", {}
             else:
-                op = "inventory.summary"
-                params = {}
+                selectors = _product_selectors(q)
+                if selectors:
+                    op, params = "inventory.product_stock", selectors
+                else:
+                    op, params = "inventory.summary", {}
 
             return ExecutionPlan(
                 plan_id=plan_id,
                 intent="inventory",
                 query=query,
                 agents=["inventory"],
-                steps=[
-                    PlanStep(
-                        step=1,
-                        agent="inventory",
-                        operation=op,
-                        parameters=params,
-                        description="Execute inventory specialist operation"
-                    )
-                ]
+                steps=[PlanStep(step=1, agent="inventory", operation=op, parameters=params, description="Execute inventory specialist operation")],
             )
 
-        # 5. Single-Agent: HR
+        # 5. HR / People Management.
         if any(w in q for w in ["employee", "leave", "policy", "policies", "remote", "sick", "headcount", "staff", "profile"]):
             if any(w in q for w in ["all policies", "list policies", "all hr policies", "corporate policies", "company policies"]):
-                op = "hr.policies"
-                params = {}
-
+                op, params = "hr.policies", {}
             elif any(w in q for w in ["policy", "remote", "sick", "annual"]):
                 op = "hr.policy"
                 policy_title = "Remote Work" if "remote" in q else ("Sick Leave" if "sick" in q else "Annual Leave")
@@ -161,31 +152,14 @@ class DeterministicRouter:
                 emp_id = "EMP002" if "emp002" in q or "priya" in q else "EMP001"
                 params = {"employee_id": emp_id}
             else:
-                op = "hr.summary"
-                params = {}
+                op, params = "hr.summary", {}
 
             return ExecutionPlan(
                 plan_id=plan_id,
                 intent="hr",
                 query=query,
                 agents=["hr"],
-                steps=[
-                    PlanStep(
-                        step=1,
-                        agent="hr",
-                        operation=op,
-                        parameters=params,
-                        description="Execute HR specialist operation"
-                    )
-                ]
+                steps=[PlanStep(step=1, agent="hr", operation=op, parameters=params, description="Execute HR specialist operation")],
             )
 
-
-        # 6. Unsupported / Out-of-Domain
-        return ExecutionPlan(
-            plan_id=plan_id,
-            intent="unsupported",
-            query=query,
-            agents=[],
-            steps=[]
-        )
+        return ExecutionPlan(plan_id=plan_id, intent="unsupported", query=query, agents=[], steps=[])

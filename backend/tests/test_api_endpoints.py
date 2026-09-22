@@ -21,7 +21,7 @@ def test_dashboard_endpoint_derived_values(client):
 
     # Inventory & HR counts derived from database
     assert data["metrics"]["lowStockProducts"]["value"] == 4
-    assert data["metrics"]["employees"]["value"] == 16
+    assert data["metrics"]["employees"]["value"] == 180
 
     # Summary text generated dynamically with real numbers
     assert "₹124,500" in data["summary"]
@@ -56,10 +56,12 @@ def test_hr_endpoint_derived_values(client):
     response = client.get("/api/hr")
     assert response.status_code == 200
     data = response.json()
-    assert data["employeeCount"] == 16
-    assert data["employeesOnLeave"] == 3
-    assert data["departments"] == 5
+    assert data["employeeCount"] == 180
+    assert data["employeesOnLeave"] == 17
+    assert data["departments"] == 12
     assert len(data["policies"]) == 3
+    assert data["openRequests"] == 27
+    assert len(data["employees"]) == 180
 
 
 def test_activity_endpoint_records(client):

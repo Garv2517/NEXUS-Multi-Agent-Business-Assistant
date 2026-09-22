@@ -27,7 +27,7 @@ DASHBOARD_DATA = {
             "value": 4
         },
         "employees": {
-            "value": 36
+            "value": 180
         }
     },
     "summary": "Sales performance is trending upward this month. Laptop Pro remains the strongest-selling product, while four products currently require inventory attention."
@@ -106,10 +106,10 @@ INVENTORY_DATA = {
 }
 
 HR_DATA = {
-    "employeeCount": 36,
-    "employeesOnLeave": 3,
-    "departments": 5,
-    "openRequests": 4,
+    "employeeCount": 180,
+    "employeesOnLeave": 17,
+    "departments": 12,
+    "openRequests": 27,
     "policies": [
         {
             "id": "policy_01",

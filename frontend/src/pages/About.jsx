@@ -29,8 +29,8 @@ export function About() {
       <div className="space-y-4">
         <PageHeader
           title="About NEXUS"
-          description="Multi-Agent Business Intelligence Assistant"
-          badge="Architecture & Insights"
+          description="Unified Retail Analytics & Multi-Agent Business Intelligence"
+          badge="Unified Analytics Architecture"
         />
 
         <div className="nexus-card p-6 sm:p-8 bg-gradient-to-r from-[#0c082b] via-[#090624] to-[#050315] border-[#433bff]/40 shadow-card-glow relative overflow-hidden">
@@ -43,7 +43,7 @@ export function About() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#fbfbfe] tracking-tight leading-tight">
-              NEXUS coordinates specialized business agents across Sales, Inventory and People Management to transform structured business data into reliable, traceable insights.
+              NEXUS unifies the USA Toy Sales analytics dataset across Sales, Inventory, Performance, Risk and Forecasting, while People Management remains a separate internal workforce domain.
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 font-medium leading-relaxed">
@@ -57,7 +57,7 @@ export function About() {
               </span>
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#07041a] border border-[#1f1a54]">
                 <Database className="w-3.5 h-3.5 text-emerald-400" />
-                Persistent SQLite Backend
+                Dual SQLite Data Domains
               </span>
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#07041a] border border-[#1f1a54]">
                 <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
@@ -123,15 +123,15 @@ export function About() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3 rounded-lg bg-[#050315] border border-emerald-500/20 flex items-start gap-2 text-xs text-slate-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>Revenue figures originate directly from structured sales records.</span>
+              <span>Retail revenue and product performance originate from the Kaggle-backed nexus_analytics.db dataset.</span>
             </div>
             <div className="p-3 rounded-lg bg-[#050315] border border-emerald-500/20 flex items-start gap-2 text-xs text-slate-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>Stock quantities reflect verified inventory levels and reorder thresholds.</span>
+              <span>Inventory quantities, valuations and stockout exposure come from the same Kaggle-backed analytics dataset; no reorder thresholds are invented.</span>
             </div>
             <div className="p-3 rounded-lg bg-[#050315] border border-emerald-500/20 flex items-start gap-2 text-xs text-slate-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>People information is queried directly from structured employee data.</span>
+              <span>People Management remains isolated in nexus.db because the retail dataset contains no personnel records.</span>
             </div>
             <div className="p-3 rounded-lg bg-[#050315] border border-emerald-500/20 flex items-start gap-2 text-xs text-slate-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />

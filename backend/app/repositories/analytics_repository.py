@@ -454,6 +454,48 @@ class AnalyticsRepository:
             cursor.execute(query, params)
             return [dict(r) for r in cursor.fetchall()]
 
+    def get_inventory_product_detail(
+        self,
+        product_id: Optional[int] = None,
+        product_name: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Returns one product's aggregate inventory position across all stores.
+        The lookup is deterministic and read-only. Product ID takes precedence;
+        name matching is case-insensitive exact-match.
+        """
+        if product_id is None and not product_name:
+            raise ValueError("At least one product identifier is required.")
+
+        query = """
+            SELECT
+                p.product_id,
+                p.product_name,
+                p.product_category AS category,
+                COUNT(i.store_id) AS store_placements,
+                COALESCE(SUM(i.stock_on_hand), 0) AS stock_units,
+                COALESCE(SUM(CASE WHEN i.stock_on_hand = 0 THEN 1 ELSE 0 END), 0) AS zero_stock_store_count,
+                COALESCE(SUM(i.stock_on_hand * p.product_cost_cents), 0) AS inventory_cost_value_cents,
+                COALESCE(SUM(i.stock_on_hand * p.product_price_cents), 0) AS inventory_retail_value_cents
+            FROM external_products p
+            LEFT JOIN external_inventory i ON p.product_id = i.product_id
+        """
+        params: List[Any] = []
+        if product_id is not None:
+            query += " WHERE p.product_id = ?"
+            params.append(product_id)
+        else:
+            query += " WHERE LOWER(p.product_name) = LOWER(?)"
+            params.append(product_name.strip())
+
+        query += " GROUP BY p.product_id LIMIT 1"
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
     # =========================================================================
     # Phase D2: Risk Management Query Methods
     # =========================================================================

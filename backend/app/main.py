@@ -16,7 +16,8 @@ from .api import (
     hr_router,
     activity_router,
     analytics_router,
-    risk_router
+    risk_router,
+    forecast_router
 )
 
 # Configure basic logging
@@ -69,6 +70,7 @@ app.include_router(hr_router)
 app.include_router(activity_router)
 app.include_router(analytics_router)
 app.include_router(risk_router)
+app.include_router(forecast_router)
 
 
 @app.get("/", tags=["Root"])

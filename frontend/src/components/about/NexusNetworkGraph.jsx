@@ -95,15 +95,15 @@ const NODE_DETAILS = {
     accent: 'border-purple-500/40 text-purple-300 bg-purple-950/40'
   },
   db: {
-    title: 'SQLite Business Database',
+    title: 'SQLite Data Layer',
     role: 'Source of Truth',
-    type: 'Relational Database',
-    description: 'Embedded, persistent transactional database storing verified orders, products, inventory, and employee records.',
+    type: 'Dual Relational Domains',
+    description: 'Separated SQLite domains: nexus_analytics.db provides the unified retail dataset for sales, inventory, performance, risk and forecasting; nexus.db retains People Management and system activity.',
     capabilities: [
       'Structured Relational Schema',
       'Zero-Latency Local Querying',
       'Atomic Transaction Integrity',
-      'Single Source of Factual Truth'
+      'Explicit Retail / Internal Domain Separation'
     ],
     accent: 'border-blue-500/40 text-blue-300 bg-blue-950/40'
   }

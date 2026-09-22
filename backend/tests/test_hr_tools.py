@@ -11,9 +11,9 @@ from app.tools.hr_tools import (
 def test_get_employee_summary(test_db):
     """Verifies employee summary counts from SQLite."""
     summary = get_employee_summary(db_path=test_db)
-    assert summary["employee_count"] == 16
-    assert summary["departments"] == 5
-    assert summary["employees_on_leave"] == 3
+    assert summary["employee_count"] == 180
+    assert summary["departments"] == 12
+    assert summary["employees_on_leave"] == 17
 
 
 def test_get_employee_details_valid(test_db):
@@ -35,7 +35,7 @@ def test_get_employee_details_invalid_raises_error(test_db):
 def test_get_all_employees_tool(test_db):
     """Verifies employee directory list."""
     employees = get_all_employees_tool(db_path=test_db)
-    assert len(employees) == 16
+    assert len(employees) == 180
     assert all("name" in e and "role" in e for e in employees)
 
 

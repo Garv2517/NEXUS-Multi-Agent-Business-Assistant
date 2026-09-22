@@ -130,8 +130,8 @@ async def test_hr_agent_summary_operation(test_db):
     task = AgentTask(task_id="t_hr", operation="hr.summary", parameters={"db_path": test_db})
     res = await agent.execute(task)
     assert res.status == "success"
-    assert res.data["employee_count"] == 16
-    assert res.data["departments"] == 5
+    assert res.data["employee_count"] == 180
+    assert res.data["departments"] == 12
     assert len(res.tool_calls) == 1
     assert res.tool_calls[0].tool == "get_employee_summary"
 

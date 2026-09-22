@@ -8,6 +8,24 @@ from app.db.connection import initialize_database
 from app.main import app
 
 
+@pytest.fixture(autouse=True)
+def force_local_test_orchestration():
+    """Keep ordinary pytest deterministic and offline regardless of developer .env.
+
+    Foundry-specific tests explicitly pass ``orchestration_mode="foundry_manager"``
+    with mocked routers, so they still exercise that path without live Azure calls.
+    """
+    original_mode = settings.ORCHESTRATION_MODE
+    original_fallback = settings.FOUNDRY_FALLBACK_TO_LOCAL
+    settings.ORCHESTRATION_MODE = "local"
+    settings.FOUNDRY_FALLBACK_TO_LOCAL = True
+    try:
+        yield
+    finally:
+        settings.ORCHESTRATION_MODE = original_mode
+        settings.FOUNDRY_FALLBACK_TO_LOCAL = original_fallback
+
+
 @pytest.fixture(scope="session")
 def test_db():
     """

@@ -66,11 +66,11 @@ class FoundryRoutingDecision(BaseModel):
     )
     product_name: Optional[str] = Field(
         default=None,
-        description="Name of specific product for stock lookup (e.g. Laptop Pro)."
+        description="Name of a product for stock lookup (e.g. Mega Board Game)."
     )
     product_id: Optional[str] = Field(
         default=None,
-        description="ID of specific product if mentioned (e.g. P101)."
+        description="Numeric product ID if mentioned (e.g. 130)."
     )
     employee_id: Optional[str] = Field(
         default=None,
@@ -101,8 +101,8 @@ def build_execution_plan(
     plan_id = f"plan_{uuid.uuid4().hex[:8]}"
 
     # Extract clean selector parameters if decision is provided
-    month = getattr(decision, "month", None) or 9
-    year = getattr(decision, "year", None) or 2026
+    month = getattr(decision, "month", None)
+    year = getattr(decision, "year", None)
     limit = getattr(decision, "limit", None) or 3
     p_name = getattr(decision, "product_name", None)
     p_id = getattr(decision, "product_id", None)

@@ -9,6 +9,7 @@ from app.agents.manager import ManagerAgent
 from app.agents.registry import create_default_registry
 from app.agents.base import BaseAgent
 from app.agents.types import AgentTask, AgentResult
+from app.core.config import settings
 
 
 def test_router_sales_query():
@@ -63,13 +64,21 @@ def test_router_unsupported_query():
 
 @pytest.mark.anyio
 async def test_manager_single_agent_sales(test_db):
-    manager = ManagerAgent()
-    resp = await manager.orchestrate("How much revenue did we make?", session_id="test-session", db_path=test_db)
+    manager = ManagerAgent(orchestration_mode="local")
+    resp = await manager.orchestrate(
+        "How much revenue did we make?",
+        session_id="test-session",
+        db_path=test_db,
+        analytics_db_path=settings.get_analytics_database_path(),
+    )
     assert resp.session_id == "test-session"
     assert resp.agents_used == ["sales"]
     assert len(resp.tool_calls) == 1
     assert resp.tool_calls[0].tool == "get_total_sales"
-    assert "₹124,500" in resp.answer
+    assert "$9,862,933.25" in resp.answer
+    assert "567,270" in resp.answer
+    assert "245,800" in resp.answer
+    assert "₹" not in resp.answer
     assert any(e.type == "response_completed" for e in resp.trace)
 
 
@@ -82,11 +91,12 @@ async def test_manager_compound_query_checks_all_returned_products(test_db):
     3. Inventory agent is executed for EACH returned product ID.
     4. Response contains SQLite values.
     """
-    manager = ManagerAgent()
+    manager = ManagerAgent(orchestration_mode="local")
     resp = await manager.orchestrate(
         "Compare our top-selling products with current inventory.",
         session_id="test-compound",
-        db_path=test_db
+        db_path=test_db,
+        analytics_db_path=settings.get_analytics_database_path(),
     )
 
     assert resp.agents_used == ["sales", "inventory"]
@@ -101,19 +111,30 @@ async def test_manager_compound_query_checks_all_returned_products(test_db):
     assert len(context_events) == 1
     passed_ids = context_events[0].metadata["product_ids"]
     assert len(passed_ids) == 3
-    assert set(passed_ids) == {"P101", "P102", "P103"}
+    assert set(passed_ids) == {130, 97, 153}
 
-    # Final response verification: asserts all 3 returned products appear with factual data
-    assert "Laptop Pro: 27 sold, 4 currently in stock, reorder level 10" in resp.answer
-    assert "Wireless Headset: 42 sold, 31 currently in stock, reorder level 12" in resp.answer
-    assert "Mechanical Keyboard: 31 sold, 8 currently in stock, reorder level 10" in resp.answer
-    assert "Inventory attention is required for Laptop Pro" in resp.answer
+    # Final response verification: unified Kaggle Sales + Inventory facts.
+    assert "Mega Board Game" in resp.answer
+    assert "$231,910.47" in resp.answer
+    assert "421 units currently in stock" in resp.answer
+    assert "City Board Game" in resp.answer
+    assert "828 units currently in stock" in resp.answer
+    assert "Pro Science Lab" in resp.answer
+    assert "507 units currently in stock" in resp.answer
+    assert "reorder levels" in resp.answer.lower()
+    assert "Laptop Pro" not in resp.answer
+    assert "₹" not in resp.answer
 
 
 @pytest.mark.anyio
 async def test_manager_business_overview_invokes_all_three_specialists(test_db):
-    manager = ManagerAgent()
-    resp = await manager.orchestrate("Give me a business overview.", session_id="test-overview", db_path=test_db)
+    manager = ManagerAgent(orchestration_mode="local")
+    resp = await manager.orchestrate(
+        "Give me a business overview.",
+        session_id="test-overview",
+        db_path=test_db,
+        analytics_db_path=settings.get_analytics_database_path(),
+    )
 
     assert set(resp.agents_used) == {"sales", "inventory", "hr"}
     tool_names = [tc.tool for tc in resp.tool_calls]
@@ -121,15 +142,16 @@ async def test_manager_business_overview_invokes_all_three_specialists(test_db):
     assert "get_inventory_summary" in tool_names
     assert "get_employee_summary" in tool_names
 
-    # Assert factual database values are present
-    assert "124,500" in resp.answer
-    assert "13 products" in resp.answer
-    assert "16 employees" in resp.answer
+    # Unified retail analytics + separate synthetic People domain.
+    assert "$9,862,933.25" in resp.answer
+    assert "338,993 units" in resp.answer
+    assert "321 zero-stock placements" in resp.answer
+    assert "180 synthetic internal employees" in resp.answer
 
 
 @pytest.mark.anyio
 async def test_manager_unsupported_query_invokes_zero_agents():
-    manager = ManagerAgent()
+    manager = ManagerAgent(orchestration_mode="local")
     resp = await manager.orchestrate("What's the weather?", session_id="test-unsupported")
 
     assert resp.agents_used == []
@@ -158,7 +180,7 @@ async def test_manager_specialist_failure_isolation(test_db):
             )
 
     registry.register("inventory", FailingInventoryAgent())
-    manager = ManagerAgent(registry=registry)
+    manager = ManagerAgent(registry=registry, orchestration_mode="local")
 
     resp = await manager.orchestrate(
         "Compare our top-selling products with current inventory.",
@@ -185,11 +207,12 @@ async def test_manager_compound_query_activity_deduplication(test_db):
     with get_db(test_db) as conn:
         before = len(get_activity_logs_db(conn, limit=1000))
 
-    manager = ManagerAgent()
+    manager = ManagerAgent(orchestration_mode="local")
     resp = await manager.orchestrate(
         "Compare our top-selling products with current inventory.",
         session_id="test-dedup",
-        db_path=test_db
+        db_path=test_db,
+        analytics_db_path=settings.get_analytics_database_path(),
     )
 
     with get_db(test_db) as conn:
@@ -210,7 +233,7 @@ async def test_manager_low_stock_query_enumerates_every_tool_product(test_db):
     """
     from app.tools.inventory_tools import get_low_stock_products
 
-    manager = ManagerAgent()
+    manager = ManagerAgent(orchestration_mode="local")
     resp = await manager.orchestrate(
         "Which products are low in stock?",
         session_id="test-low-stock",
@@ -248,7 +271,7 @@ async def test_manager_low_stock_consistency_with_inventory_summary(test_db):
     from app.tools.inventory_tools import get_inventory_summary
 
     summary = get_inventory_summary(db_path=test_db)
-    manager = ManagerAgent()
+    manager = ManagerAgent(orchestration_mode="local")
     resp = await manager.orchestrate(
         "Which products are low in stock?",
         session_id="test-low-stock-summary",

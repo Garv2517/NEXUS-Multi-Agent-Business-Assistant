@@ -50,52 +50,62 @@ export async function getHealthStatus() {
 }
 
 /**
- * GET /api/dashboard
+ * GET unified Overview data from the Kaggle-backed analytics domain.
+ * People data and activity logs remain in the internal operational domain.
  */
 export async function getDashboardData() {
-  const data = await apiRequest("/api/dashboard");
-  const activityData = await apiRequest("/api/activity").catch(() => []);
+  const [metadata, summary, monthly, hr, activityData] = await Promise.all([
+    getAnalyticsMetadata(),
+    getAnalyticsSummary(),
+    getAnalyticsMonthlySales(),
+    apiRequest("/api/hr"),
+    apiRequest("/api/activity").catch(() => [])
+  ]);
+
+  const trend = monthly.monthly_trend || [];
+  const latest = trend[trend.length - 1];
+  const previous = trend[trend.length - 2];
+  const monthChangePct = latest && previous && previous.revenue_cents > 0
+    ? ((latest.revenue_cents - previous.revenue_cents) / previous.revenue_cents) * 100
+    : 0;
 
   return {
+    metadata,
+    summary,
     metrics: {
       revenue: {
-        value: `₹${Number(data.metrics.revenue.value).toLocaleString('en-IN')}`,
-        raw: data.metrics.revenue.value,
-        change: `+${data.metrics.revenue.change}%`,
-        isPositive: data.metrics.revenue.change >= 0,
-        timeframe: "vs last month"
+        valueCents: summary.total_revenue_cents,
+        changePct: monthChangePct,
+        timeframe: "2025 gross revenue"
       },
-      orders: {
-        value: String(data.metrics.orders.value),
-        raw: data.metrics.orders.value,
-        change: `+${data.metrics.orders.change}%`,
-        isPositive: data.metrics.orders.change >= 0,
-        timeframe: "vs last month"
+      transactions: {
+        value: summary.transaction_count,
+        timeframe: "2025 sales line items"
       },
-      lowStock: {
-        value: `${data.metrics.lowStockProducts.value} products`,
-        count: data.metrics.lowStockProducts.value,
-        change: "Action needed",
-        isWarning: true,
-        timeframe: "below reorder level"
+      stockouts: {
+        value: summary.stockout_placement_count,
+        timeframe: "current zero-stock placements"
       },
       employees: {
-        value: `${data.metrics.employees.value} active`,
-        count: data.metrics.employees.value,
-        change: "3 on leave today",
-        isNeutral: true,
-        timeframe: "across 5 depts"
+        value: hr.employeeCount,
+        timeframe: "internal People Management"
       }
     },
     businessSummary: {
-      headline: data.summary,
-      confidence: "98.4%",
-      generatedAt: "Live from Nexus API",
-      agentsInvolved: ["Manager", "Sales", "Inventory"]
+      headline: `2025 retail analytics recorded ${summary.total_units_sold.toLocaleString('en-US')} units sold across ${summary.product_count} products and ${summary.store_count} stores, with ${summary.stockout_placement_count} current zero-stock placements.`,
+      generatedAt: `${metadata.dataset_name} · ${metadata.currency_code}`,
+      dataSources: ["Sales Analytics", "Inventory Analytics", "People Management"],
+      status: "Verified"
     },
+    monthlyRevenueChart: trend.map((item) => ({
+      month: item.year_month,
+      revenue: item.revenue_cents / 100,
+      units: item.units_sold,
+      transactions: item.transaction_count
+    })),
     recentActivity: activityData.slice(0, 3).map((item, idx) => ({
       id: item.id || `act-${idx}`,
-      agent: item.agent === 'sales' ? 'Sales Agent' : item.agent === 'inventory' ? 'Inventory Agent' : 'Manager Agent',
+      agent: item.agent === 'sales' ? 'Sales Agent' : item.agent === 'inventory' ? 'Inventory Agent' : item.agent === 'hr' ? 'People Management Agent' : 'Manager Agent',
       action: item.action,
       timeAgo: `${(idx + 1) * 4} min ago`,
       status: item.status || 'success',
@@ -105,64 +115,96 @@ export async function getDashboardData() {
 }
 
 /**
- * GET /api/sales
+ * Unified Sales view backed entirely by nexus_analytics.db.
  */
 export async function getSalesData() {
-  const data = await apiRequest("/api/sales");
+  const [metadata, summary, monthly, products, categories] = await Promise.all([
+    getAnalyticsMetadata(),
+    getAnalyticsSummary(),
+    getAnalyticsMonthlySales(),
+    getAnalyticsProducts({ limit: 10, order_by: 'revenue' }),
+    getAnalyticsCategories()
+  ]);
+
+  const trend = monthly.monthly_trend || [];
+  const latest = trend[trend.length - 1];
+  const previous = trend[trend.length - 2];
+  const monthlyChangePct = latest && previous && previous.revenue_cents > 0
+    ? ((latest.revenue_cents - previous.revenue_cents) / previous.revenue_cents) * 100
+    : 0;
 
   return {
+    metadata,
+    summary,
     metrics: {
-      monthlyRevenue: `₹${Number(data.revenue).toLocaleString('en-IN')}`,
-      unitsSold: String(data.unitsSold),
-      averageOrderValue: `₹${Number(data.averageOrderValue).toLocaleString('en-IN')}`,
-      growth: `+${data.monthlyChange}%`
+      grossRevenueCents: summary.total_revenue_cents,
+      grossProfitCents: summary.gross_profit_cents,
+      grossMarginPct: summary.gross_margin_pct,
+      unitsSold: summary.total_units_sold,
+      transactions: summary.transaction_count,
+      averageOrderValueCents: summary.average_order_value_cents,
+      monthlyChangePct
     },
-    monthlyRevenueChart: data.monthlyRevenue.map((item) => ({
-      month: item.month,
-      revenue: item.value,
-      orders: Math.round(item.value / 450)
+    monthlyRevenueChart: trend.map((item) => ({
+      month: item.year_month,
+      revenue: item.revenue_cents / 100,
+      units: item.units_sold,
+      transactions: item.transaction_count
     })),
-    topProducts: data.topProducts.map((prod) => ({
-      id: prod.id,
-      name: prod.name,
-      unitsSold: prod.unitsSold,
-      revenue: `₹${Number(prod.revenue).toLocaleString('en-IN')}`,
-      revenueRaw: prod.revenue,
-      share: `${Math.round((prod.revenue / data.revenue) * 100)}%`,
-      trend: "+12%"
+    topProducts: (products.products || []).map((prod) => ({
+      id: prod.product_id,
+      name: prod.product_name,
+      category: prod.product_category,
+      unitsSold: prod.units_sold,
+      revenueCents: prod.revenue_cents,
+      revenueRaw: prod.revenue_cents / 100,
+      profitCents: prod.profit_cents,
+      grossMarginPct: prod.gross_margin_pct,
+      sharePct: summary.total_revenue_cents > 0
+        ? (prod.revenue_cents / summary.total_revenue_cents) * 100
+        : 0
     })),
-    recentSales: [
-      { id: "ORD-7821", customer: "Apex Tech Labs", product: "Laptop Pro (x2)", amount: "₹5,000", date: "Today, 11:20", status: "Completed" },
-      { id: "ORD-7820", customer: "Pinnacle Designs", product: "Wireless Headset (x4)", amount: "₹2,400", date: "Today, 10:45", status: "Completed" },
-      { id: "ORD-7819", customer: "Quantix Global", product: "Mechanical Keyboard (x3)", amount: "₹2,100", date: "Today, 09:30", status: "Processing" },
-      { id: "ORD-7818", customer: "Helix Software", product: "Monitor 27 (x1)", amount: "₹3,200", date: "Yesterday, 16:15", status: "Completed" },
-      { id: "ORD-7817", customer: "Nexus AI Lab", product: "Laptop Pro (x1)", amount: "₹2,500", date: "Yesterday, 14:02", status: "Completed" }
-    ]
+    categories: categories.categories || []
   };
 }
 
 /**
- * GET /api/inventory
+ * Unified Inventory view backed by Kaggle inventory + deterministic risk analytics.
  */
 export async function getInventoryData() {
-  const data = await apiRequest("/api/inventory");
+  const [metadata, inventory, products, stockouts] = await Promise.all([
+    getAnalyticsMetadata(),
+    getAnalyticsInventory(),
+    getAnalyticsInventoryProducts({ limit: 180, order_by: 'stock_units' }),
+    getRiskStockouts()
+  ]);
 
   return {
+    metadata,
     metrics: {
-      totalProducts: data.totalProducts,
-      lowStock: data.lowStockCount,
-      outOfStock: data.outOfStockCount,
-      healthyStock: data.healthyStockCount
+      totalProducts: products.total_products,
+      totalStockUnits: inventory.total_units_on_hand,
+      totalPlacements: inventory.total_placements,
+      inStockPlacements: inventory.in_stock_placements,
+      outOfStockPlacements: inventory.out_of_stock_placements,
+      stockoutRatePct: inventory.stockout_rate_pct,
+      costValueCents: inventory.total_cost_value_cents,
+      retailValueCents: inventory.total_retail_value_cents,
+      potentialGrossMarginCents: inventory.potential_gross_margin_cents,
+      snapshotDate: inventory.snapshot_date,
+      snapshotDateIsAssumed: inventory.snapshot_date_is_assumed
     },
-    products: data.products.map((prod) => ({
-      id: prod.id,
-      name: prod.name,
-      stock: prod.stock,
-      reorderLevel: prod.reorderLevel,
-      status: prod.status.charAt(0).toUpperCase() + prod.status.slice(1),
-      category: prod.id === 'P101' ? 'Compute' : prod.id === 'P102' ? 'Audio' : prod.id === 'P103' ? 'Peripherals' : 'Displays',
-      warehouse: prod.id === 'P101' ? 'North-Bay Facility' : prod.id === 'P103' ? 'East Hub' : 'West Hub',
-      unitPrice: prod.id === 'P101' ? '₹2,500' : '₹600'
+    stockoutExposure: stockouts.summary,
+    products: (products.products || []).map((prod) => ({
+      id: prod.product_id,
+      name: prod.product_name,
+      category: prod.category,
+      stockUnits: prod.stock_units,
+      storePlacements: prod.store_placements,
+      zeroStockStores: prod.zero_stock_store_count,
+      costValueCents: prod.inventory_cost_value_cents,
+      retailValueCents: prod.inventory_retail_value_cents,
+      exposureStatus: prod.zero_stock_store_count > 0 ? 'Stockout Exposure' : 'Fully In Stock'
     }))
   };
 }
@@ -186,16 +228,14 @@ export async function getHRData() {
       category: p.title.includes('Leave') ? 'Time Off' : 'Workplace',
       code: p.id.toUpperCase()
     })),
-    employees: [
-      { id: "EMP-001", name: "Aarav Sharma", department: "Engineering", role: "Staff AI Engineer", status: "Active", tenure: "3.2 yrs" },
-      { id: "EMP-002", name: "Priya Patel", department: "Product", role: "Lead Product Manager", status: "Active", tenure: "2.5 yrs" },
-      { id: "EMP-003", name: "Rohan Verma", department: "Sales", role: "Account Executive", status: "On Leave", tenure: "1.8 yrs" },
-      { id: "EMP-004", name: "Ananya Iyer", department: "Operations", role: "Inventory Lead", status: "Active", tenure: "4.0 yrs" },
-      { id: "EMP-005", name: "Devansh Rao", department: "Engineering", role: "Systems Architect", status: "Active", tenure: "2.1 yrs" },
-      { id: "EMP-006", name: "Kavita Nair", department: "People & HR", role: "HR Generalist", status: "On Leave", tenure: "1.2 yrs" },
-      { id: "EMP-007", name: "Vikram Malhotra", department: "Finance", role: "Financial Analyst", status: "Active", tenure: "3.0 yrs" },
-      { id: "EMP-008", name: "Sneha Reddy", department: "Sales", role: "Sales Director", status: "Active", tenure: "4.5 yrs" }
-    ]
+    employees: (data.employees || []).map((e) => ({
+      id: e.id,
+      name: e.name,
+      department: e.department,
+      role: e.role,
+      status: e.status,
+      leaveBalance: e.leaveBalance
+    }))
   };
 }
 
@@ -429,4 +469,24 @@ export async function getRiskSalesVelocity(params = {}) {
   if (params.classification) query.append("classification", params.classification);
   const qs = query.toString();
   return await apiRequest(`/api/risk/sales-velocity${qs ? `?${qs}` : ''}`);
+}
+
+// ===========================================================================
+// FORECASTING API ENDPOINTS — D3B
+// ===========================================================================
+
+export async function getForecastConfig() {
+  return await apiRequest("/api/forecast/config");
+}
+
+export async function getCompanyForecast() {
+  return await apiRequest("/api/forecast/company");
+}
+
+export async function getCategoryForecasts() {
+  return await apiRequest("/api/forecast/categories");
+}
+
+export async function getForecastCoverage() {
+  return await apiRequest("/api/forecast/coverage");
 }

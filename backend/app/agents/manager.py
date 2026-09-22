@@ -49,12 +49,14 @@ class ManagerAgent:
         self,
         query: str,
         session_id: str,
-        db_path: Optional[str] = None
+        db_path: Optional[str] = None,
+        analytics_db_path: Optional[str] = None
     ) -> ChatResponse:
         trace: List[TraceEvent] = []
         tool_calls: List[ToolCall] = []
         agents_used: List[str] = []
         event_counter = 1
+        using_analytics = bool(analytics_db_path)
 
         def next_event_id() -> str:
             nonlocal event_counter
@@ -166,7 +168,7 @@ class ManagerAgent:
             )
             return ChatResponse(
                 session_id=session_id,
-                answer="I can currently help with sales, inventory, HR, and business overview questions.",
+                answer="I can currently help with sales, inventory, HR, and business overview questions using verified Nexus data.",
                 agents_used=[],
                 tool_calls=[],
                 trace=trace,
@@ -203,10 +205,15 @@ class ManagerAgent:
                 )
             )
 
+            sales_params = {"limit": 3, "db_path": db_path}
+            if using_analytics:
+                sales_params["analytics_db_path"] = analytics_db_path
+            else:
+                sales_params.update({"month": 9, "year": 2026})
             sales_task = AgentTask(
                 task_id=f"task_{uuid.uuid4().hex[:8]}",
                 operation="sales.top_products",
-                parameters={"limit": 3, "month": 9, "year": 2026, "db_path": db_path}
+                parameters=sales_params
             )
             sales_res = await sales_agent.execute(sales_task)
 
@@ -294,7 +301,7 @@ class ManagerAgent:
                     type="context_passed",
                     agent="manager",
                     status="success",
-                    message=f"Passed top product IDs ({', '.join(product_ids)}) to Inventory Agent",
+                    message=f"Passed top product IDs ({', '.join(map(str, product_ids))}) to Inventory Agent",
                     metadata={
                         "source": "sales",
                         "target": "inventory",
@@ -331,7 +338,11 @@ class ManagerAgent:
                 inv_task = AgentTask(
                     task_id=f"task_{uuid.uuid4().hex[:8]}",
                     operation="inventory.product_stock",
-                    parameters={"product_id": pid, "db_path": db_path},
+                    parameters={
+                        "product_id": pid,
+                        "db_path": db_path,
+                        **({"analytics_db_path": analytics_db_path} if using_analytics else {})
+                    },
                     context={"sales_source": "top_products"}
                 )
                 inv_res = await inventory_agent.execute(inv_task)
@@ -415,31 +426,52 @@ class ManagerAgent:
 
             # Response synthesis combining ALL returned top products and inventory data
             product_lines = []
-            low_stock_items = []
-            for p in top_products:
-                pid = p["id"]
-                p_name = p.get("name", pid)
-                units = p.get("units_sold", 0)
-                inv = inventory_stocks.get(pid, {})
-                stock_val = inv.get("stock", 0)
-                reorder_val = inv.get("reorder_level", 0)
-                product_lines.append(
-                    f"- {p_name}: {units} sold, {stock_val} currently in stock, reorder level {reorder_val}."
+            if using_analytics:
+                for p in top_products:
+                    pid = p["id"]
+                    p_name = p.get("name", str(pid))
+                    units = p.get("units_sold", 0)
+                    revenue_cents = p.get("revenue_cents", 0)
+                    inv = inventory_stocks.get(pid, {})
+                    stock_val = inv.get("stock", 0)
+                    placements = inv.get("store_placements", 0)
+                    zero_stores = inv.get("zero_stock_store_count", 0)
+                    product_lines.append(
+                        f"- {p_name} (Product {pid}): {units:,} units sold, "
+                        f"${revenue_cents / 100:,.2f} revenue, {stock_val:,} units currently in stock "
+                        f"across {placements} store placements; {zero_stores} zero-stock stores."
+                    )
+                answer = (
+                    "Top products by 2025 gross revenue compared with the current external inventory snapshot:\n\n"
+                    + "\n".join(product_lines)
+                    + "\n\nInventory snapshot date is assumed as Dec 31, 2025 for analytical use. "
+                    "The source dataset does not provide reorder levels, so none are invented."
                 )
-                if stock_val <= reorder_val:
-                    low_stock_items.append(f"{p_name} ({stock_val} left vs reorder level {reorder_val})")
+            else:
+                low_stock_items = []
+                for p in top_products:
+                    pid = p["id"]
+                    p_name = p.get("name", pid)
+                    units = p.get("units_sold", 0)
+                    inv = inventory_stocks.get(pid, {})
+                    stock_val = inv.get("stock", 0)
+                    reorder_val = inv.get("reorder_level", 0)
+                    product_lines.append(
+                        f"- {p_name}: {units} sold, {stock_val} currently in stock, reorder level {reorder_val}."
+                    )
+                    if stock_val <= reorder_val:
+                        low_stock_items.append(f"{p_name} ({stock_val} left vs reorder level {reorder_val})")
 
-            conclusion = (
-                f"Inventory attention is required for {', '.join(low_stock_items)} due to high sales velocity."
-                if low_stock_items
-                else "All top-selling products currently maintain healthy inventory levels."
-            )
-
-            answer = (
-                "Among the current top-selling products:\n\n"
-                + "\n".join(product_lines)
-                + f"\n\n{conclusion}"
-            )
+                conclusion = (
+                    f"Inventory attention is required for {', '.join(low_stock_items)} due to high sales velocity."
+                    if low_stock_items
+                    else "All top-selling products currently maintain healthy inventory levels."
+                )
+                answer = (
+                    "Among the current top-selling products:\n\n"
+                    + "\n".join(product_lines)
+                    + f"\n\n{conclusion}"
+                )
 
             trace.append(
                 TraceEvent(
@@ -469,19 +501,43 @@ class ManagerAgent:
             # 1. Sales
             trace.append(TraceEvent(id=next_event_id(), type="agent_started", agent="sales", status="running", message="Sales Agent started"))
             trace.append(TraceEvent(id=next_event_id(), type="tool_started", agent="sales", tool="get_total_sales", status="running", message="Retrieving monthly sales total"))
-            s_res = await sales_agent.execute(AgentTask(task_id=f"task_{uuid.uuid4().hex[:8]}", operation="sales.total", parameters={"month": 9, "year": 2026, "db_path": db_path}))
+            s_res = await sales_agent.execute(AgentTask(
+                task_id=f"task_{uuid.uuid4().hex[:8]}",
+                operation="sales.total",
+                parameters={
+                    "db_path": db_path,
+                    **({"analytics_db_path": analytics_db_path} if using_analytics else {"month": 9, "year": 2026})
+                }
+            ))
             for tc in s_res.tool_calls:
                 tool_calls.append(ToolCall(id=tc.id, agent=tc.agent, tool=tc.tool, status=tc.status, duration_ms=tc.duration_ms))
-            trace.append(TraceEvent(id=next_event_id(), type="tool_completed", agent="sales", tool="get_total_sales", status="success", message=f"Revenue: ₹{int(s_res.data.get('revenue', 0)):,}", duration_ms=s_res.tool_calls[0].duration_ms if s_res.tool_calls else 1))
+            sales_trace_message = (
+                f"Revenue: ${s_res.data.get('revenue_cents', 0) / 100:,.2f}"
+                if using_analytics
+                else f"Revenue: ₹{int(s_res.data.get('revenue', 0)):,}"
+            )
+            trace.append(TraceEvent(id=next_event_id(), type="tool_completed", agent="sales", tool="get_total_sales", status="success", message=sales_trace_message, duration_ms=s_res.tool_calls[0].duration_ms if s_res.tool_calls else 1))
             trace.append(TraceEvent(id=next_event_id(), type="agent_completed", agent="sales", status="success", message="Sales Agent completed"))
 
             # 2. Inventory
             trace.append(TraceEvent(id=next_event_id(), type="agent_started", agent="inventory", status="running", message="Inventory Agent started"))
             trace.append(TraceEvent(id=next_event_id(), type="tool_started", agent="inventory", tool="get_inventory_summary", status="running", message="Retrieving inventory summary"))
-            inv_res = await inventory_agent.execute(AgentTask(task_id=f"task_{uuid.uuid4().hex[:8]}", operation="inventory.summary", parameters={"db_path": db_path}))
+            inv_res = await inventory_agent.execute(AgentTask(
+                task_id=f"task_{uuid.uuid4().hex[:8]}",
+                operation="inventory.summary",
+                parameters={
+                    "db_path": db_path,
+                    **({"analytics_db_path": analytics_db_path} if using_analytics else {})
+                }
+            ))
             for tc in inv_res.tool_calls:
                 tool_calls.append(ToolCall(id=tc.id, agent=tc.agent, tool=tc.tool, status=tc.status, duration_ms=tc.duration_ms))
-            trace.append(TraceEvent(id=next_event_id(), type="tool_completed", agent="inventory", tool="get_inventory_summary", status="success", message=f"Total: {inv_res.data.get('total_products')} products", duration_ms=inv_res.tool_calls[0].duration_ms if inv_res.tool_calls else 1))
+            inventory_trace_message = (
+                f"Inventory: {inv_res.data.get('total_units_on_hand', 0):,} units; {inv_res.data.get('out_of_stock_placements', 0)} zero-stock placements"
+                if using_analytics
+                else f"Total: {inv_res.data.get('total_products')} products"
+            )
+            trace.append(TraceEvent(id=next_event_id(), type="tool_completed", agent="inventory", tool="get_inventory_summary", status="success", message=inventory_trace_message, duration_ms=inv_res.tool_calls[0].duration_ms if inv_res.tool_calls else 1))
             trace.append(TraceEvent(id=next_event_id(), type="agent_completed", agent="inventory", status="success", message="Inventory Agent completed"))
 
             # 3. HR
@@ -494,15 +550,28 @@ class ManagerAgent:
             trace.append(TraceEvent(id=next_event_id(), type="agent_completed", agent="hr", status="success", message="HR Agent completed"))
 
             # Synthesis
-            answer = (
-                f"Business Overview: Revenue stands at ₹{int(s_res.data.get('revenue', 0)):,} "
-                f"across {s_res.data.get('units_sold', 0)} units sold this month. "
-                f"The inventory catalog contains {inv_res.data.get('total_products', 0)} products with "
-                f"{inv_res.data.get('low_stock', 0)} requiring restocking. "
-                f"Headcount is {hr_res.data.get('employee_count', 0)} employees across "
-                f"{hr_res.data.get('departments', 0)} departments with "
-                f"{hr_res.data.get('employees_on_leave', 0)} on leave."
-            )
+            if using_analytics:
+                answer = (
+                    f"Business Overview: The external retail dataset generated "
+                    f"${s_res.data.get('revenue_cents', 0) / 100:,.2f} in 2025 revenue across "
+                    f"{s_res.data.get('units_sold', 0):,} units sold. Current inventory contains "
+                    f"{inv_res.data.get('total_units_on_hand', 0):,} units across "
+                    f"{inv_res.data.get('total_placements', 0):,} store-product placements, with "
+                    f"{inv_res.data.get('out_of_stock_placements', 0)} zero-stock placements. "
+                    f"People Management contains {hr_res.data.get('employee_count', 0)} synthetic internal employees across "
+                    f"{hr_res.data.get('departments', 0)} departments, with "
+                    f"{hr_res.data.get('employees_on_leave', 0)} on leave."
+                )
+            else:
+                answer = (
+                    f"Business Overview: Revenue stands at ₹{int(s_res.data.get('revenue', 0)):,} "
+                    f"across {s_res.data.get('units_sold', 0)} units sold this month. "
+                    f"The inventory catalog contains {inv_res.data.get('total_products', 0)} products with "
+                    f"{inv_res.data.get('low_stock', 0)} requiring restocking. "
+                    f"Headcount is {hr_res.data.get('employee_count', 0)} employees across "
+                    f"{hr_res.data.get('departments', 0)} departments with "
+                    f"{hr_res.data.get('employees_on_leave', 0)} on leave."
+                )
 
             trace.append(TraceEvent(id=next_event_id(), type="response_completed", agent="manager", status="success", message="Final response generated"))
 
@@ -527,6 +596,8 @@ class ManagerAgent:
 
             params = dict(step.parameters)
             params["db_path"] = db_path
+            if using_analytics and agent_name in {"sales", "inventory"}:
+                params["analytics_db_path"] = analytics_db_path
             task = AgentTask(task_id=f"task_{uuid.uuid4().hex[:8]}", operation=step.operation, parameters=params)
             res = await agent.execute(task)
 
@@ -553,37 +624,103 @@ class ManagerAgent:
             # Build single-agent response
             answer = ""
             if agent_name == "sales":
-                if step.operation == "sales.trend":
-                    answer = f"Sales trend across the last 6 months shows steady growth, concluding at ₹{int(res.data.get('months', [])[-1].get('revenue', 0)):,} for September 2026."
-                elif step.operation == "sales.top_products":
-                    prods = res.data.get("products", [])
-                    names = [f"{p['name']} ({p['units_sold']} units, ₹{int(p['revenue']):,})" for p in prods[:3]]
-                    answer = f"Top-selling products this month: {', '.join(names)}."
-                elif step.operation == "sales.monthly":
-                    answer = f"Monthly sales for {res.data.get('month', 9)}/{res.data.get('year', 2026)}: Total revenue is ₹{int(res.data.get('revenue', 0)):,} across {res.data.get('units_sold', 0)} units sold."
+                if using_analytics:
+                    if step.operation == "sales.trend":
+                        months = res.data.get("months", [])
+                        if months:
+                            first = months[0]
+                            last = months[-1]
+                            answer = (
+                                f"External retail sales trend covers {first.get('period')} through {last.get('period')}. "
+                                f"The latest month generated ${last.get('revenue_cents', 0) / 100:,.2f} from "
+                                f"{last.get('units_sold', 0):,} units."
+                            )
+                        else:
+                            answer = "No external monthly sales trend is available."
+                    elif step.operation == "sales.top_products":
+                        prods = res.data.get("products", [])
+                        names = [
+                            f"{p['name']} (Product {p['id']}: {p['units_sold']:,} units, ${p['revenue_cents'] / 100:,.2f})"
+                            for p in prods
+                        ]
+                        answer = "Top products by 2025 gross revenue: " + "; ".join(names) + "."
+                    elif step.operation == "sales.monthly":
+                        answer = (
+                            f"Sales for {res.data.get('period')}: ${res.data.get('revenue_cents', 0) / 100:,.2f} "
+                            f"revenue across {res.data.get('units_sold', 0):,} units and "
+                            f"{res.data.get('orders', 0):,} transactions."
+                        )
+                    else:
+                        answer = (
+                            f"The USA Toy Sales external analytics dataset generated "
+                            f"${res.data.get('revenue_cents', 0) / 100:,.2f} in total 2025 revenue across "
+                            f"{res.data.get('units_sold', 0):,} units sold and {res.data.get('orders', 0):,} transactions."
+                        )
                 else:
-                    answer = f"Total revenue generated this month is ₹{int(res.data.get('revenue', 0)):,} across {res.data.get('units_sold', 0)} units sold."
+                    if step.operation == "sales.trend":
+                        answer = f"Sales trend across the last 6 months shows steady growth, concluding at ₹{int(res.data.get('months', [])[-1].get('revenue', 0)):,} for September 2026."
+                    elif step.operation == "sales.top_products":
+                        prods = res.data.get("products", [])
+                        names = [f"{p['name']} ({p['units_sold']} units, ₹{int(p['revenue']):,})" for p in prods[:3]]
+                        answer = f"Top-selling products this month: {', '.join(names)}."
+                    elif step.operation == "sales.monthly":
+                        answer = f"Monthly sales for {res.data.get('month', 9)}/{res.data.get('year', 2026)}: Total revenue is ₹{int(res.data.get('revenue', 0)):,} across {res.data.get('units_sold', 0)} units sold."
+                    else:
+                        answer = f"Total revenue generated this month is ₹{int(res.data.get('revenue', 0)):,} across {res.data.get('units_sold', 0)} units sold."
 
             elif agent_name == "inventory":
-                if step.operation == "inventory.low_stock":
-                    count = res.data.get("count", 0)
-                    products = res.data.get("products", [])
-                    if count == 0 or not products:
-                        answer = "There are currently no products low in stock."
-                    elif count == len(products):
-                        items = [f"- {p['name']} ({p['stock']} left)" for p in products]
-                        if items:
-                            items[-1] = items[-1] + "."
-                        answer = f"There are currently {count} products low in stock:\n" + "\n".join(items)
+                if using_analytics:
+                    if step.operation == "inventory.low_stock":
+                        count = res.data.get("count", 0)
+                        products = res.data.get("products", [])
+                        if not products:
+                            answer = "No stockout or high-pressure inventory placements were returned in the current sample."
+                        else:
+                            items = []
+                            for p in products:
+                                dos = p.get("days_of_supply")
+                                dos_text = "stockout" if p.get("status") == "Stockout" else f"{dos:.1f} days of supply" if dos is not None else "coverage unavailable"
+                                items.append(f"- {p['name']} at {p.get('store_name', 'store')}: {p['stock']} units, {p['status']} ({dos_text})")
+                            answer = (
+                                f"The external inventory dataset has {count} returned/identified stockout or high-pressure placements. "
+                                f"Showing {len(products)}:\n" + "\n".join(items) +
+                                "\nThese classifications use dataset-calibrated Days of Supply; the source has no reorder levels."
+                            )
+                    elif step.operation == "inventory.product_stock":
+                        answer = (
+                            f"{res.data.get('name')} (Product {res.data.get('id')}): {res.data.get('stock', 0):,} units "
+                            f"across {res.data.get('store_placements', 0)} store placements; "
+                            f"{res.data.get('zero_stock_store_count', 0)} stores currently have zero stock for this product. "
+                            "Inventory snapshot date is assumed as Dec 31, 2025 for analytical use."
+                        )
                     else:
-                        items = [f"- {p['name']} ({p['stock']} left)" for p in products]
-                        if items:
-                            items[-1] = items[-1] + "."
-                        answer = f"{count} products are low in stock. Showing {len(products)}:\n" + "\n".join(items)
-                elif step.operation == "inventory.product_stock":
-                    answer = f"Product '{res.data.get('name')}' (ID: {res.data.get('id')}): {res.data.get('stock')} units in stock (status: {res.data.get('status')}, reorder level: {res.data.get('reorder_level')})."
+                        answer = (
+                            f"External inventory summary: {res.data.get('total_units_on_hand', 0):,} units on hand across "
+                            f"{res.data.get('total_placements', 0):,} store-product placements, including "
+                            f"{res.data.get('out_of_stock_placements', 0)} zero-stock placements "
+                            f"({res.data.get('stockout_rate_pct', 0):.2f}%). "
+                            "Inventory snapshot date is assumed as Dec 31, 2025 for analytical use."
+                        )
                 else:
-                    answer = f"Inventory summary: {res.data.get('total_products')} products in catalog, {res.data.get('healthy')} healthy, {res.data.get('low_stock')} low stock, and {res.data.get('out_of_stock')} out of stock."
+                    if step.operation == "inventory.low_stock":
+                        count = res.data.get("count", 0)
+                        products = res.data.get("products", [])
+                        if count == 0 or not products:
+                            answer = "There are currently no products low in stock."
+                        elif count == len(products):
+                            items = [f"- {p['name']} ({p['stock']} left)" for p in products]
+                            if items:
+                                items[-1] = items[-1] + "."
+                            answer = f"There are currently {count} products low in stock:\n" + "\n".join(items)
+                        else:
+                            items = [f"- {p['name']} ({p['stock']} left)" for p in products]
+                            if items:
+                                items[-1] = items[-1] + "."
+                            answer = f"{count} products are low in stock. Showing {len(products)}:\n" + "\n".join(items)
+                    elif step.operation == "inventory.product_stock":
+                        answer = f"Product '{res.data.get('name')}' (ID: {res.data.get('id')}): {res.data.get('stock')} units in stock (status: {res.data.get('status')}, reorder level: {res.data.get('reorder_level')})."
+                    else:
+                        answer = f"Inventory summary: {res.data.get('total_products')} products in catalog, {res.data.get('healthy')} healthy, {res.data.get('low_stock')} low stock, and {res.data.get('out_of_stock')} out of stock."
 
             elif agent_name == "hr":
                 if step.operation == "hr.policy":

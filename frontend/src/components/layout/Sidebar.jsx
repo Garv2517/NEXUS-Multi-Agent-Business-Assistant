@@ -12,14 +12,15 @@ import {
   Layers,
   Info,
   BarChart3,
-  ShieldAlert
+  ShieldAlert,
+  CalendarRange
 } from 'lucide-react';
 
 const WORKSPACE_ITEMS = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
-  { path: '/sales', label: 'Sales', icon: TrendingUp },
-  { path: '/inventory', label: 'Inventory', icon: Package, alertCount: 4 },
-  { path: '/hr', label: 'People Management', icon: Users },
+  { path: '/sales', label: 'Sales', icon: TrendingUp, badge: 'USD' },
+  { path: '/inventory', label: 'Inventory', icon: Package, badge: 'USD' },
+  { path: '/hr', label: 'People Management', icon: Users, badge: 'INTERNAL' },
   { path: '/activity', label: 'Activity', icon: Activity },
 ];
 
@@ -27,6 +28,7 @@ const INTELLIGENCE_ITEMS = [
   { path: '/assistant', label: 'Assistant', icon: Bot, badge: 'Live' },
   { path: '/performance', label: 'Business Performance', icon: BarChart3, badge: 'USD' },
   { path: '/risk', label: 'Insights & Risk', icon: ShieldAlert, badge: 'RISK' },
+  { path: '/forecast', label: 'Forecasting & Planning', icon: CalendarRange, badge: '4W' },
 ];
 
 export function Sidebar({ isMobileOpen, onCloseMobile }) {
@@ -48,7 +50,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
       >
         {/* Logo Branding */}
         <div className="h-14 px-5 flex items-center justify-between border-b border-[#1f1a54]/60 shrink-0">
-          <NavLink to="/" className="flex items-center gap-2.5 group">
+          <NavLink to="/" target="_self" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 rounded-lg bg-[#2f27ce] flex items-center justify-center text-white shadow-subtle-glow border border-[#433bff]/40 group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4 text-[#dedcff]" />
             </div>
@@ -88,6 +90,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  target="_self"
                   onClick={onCloseMobile}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${
@@ -116,7 +119,9 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
                             ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
                             : item.badge === 'RISK'
                               ? 'bg-rose-950/60 border border-rose-500/40 text-rose-300'
-                              : 'bg-[#433bff]/30 border border-[#433bff]/40 text-[#dedcff]'
+                              : item.badge === '4W'
+                                ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-300'
+                                : 'bg-[#433bff]/30 border border-[#433bff]/40 text-[#dedcff]'
                         }`}>
                           {item.badge}
                         </span>
@@ -140,6 +145,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  target="_self"
                   onClick={onCloseMobile}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${
@@ -162,9 +168,13 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
                         <span>{item.label}</span>
                       </div>
 
-                      {item.alertCount && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-950/60 border border-amber-500/40 text-amber-300">
-                          {item.alertCount}
+                      {item.badge && (
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-semibold ${
+                          item.badge === 'USD'
+                            ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
+                            : 'bg-sky-950/50 border border-sky-500/30 text-sky-300'
+                        }`}>
+                          {item.badge}
                         </span>
                       )}
                     </>
@@ -182,6 +192,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }) {
           {/* About Nexus NavLink */}
           <NavLink
             to="/about"
+            target="_self"
             onClick={onCloseMobile}
             className={({ isActive }) =>
               `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group ${

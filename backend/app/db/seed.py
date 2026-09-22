@@ -70,14 +70,14 @@ SALES_SEED = [
     ("TX-SEP-05", "P113", 130, 50.0, "2026-09-20"),  # 6,500
 ]
 
-EMPLOYEES_SEED = [
+EMPLOYEES_BASE_SEED = [
     ("EMP-001", "Aarav Sharma", "Engineering", "Staff AI Engineer", "Active", 14),
     ("EMP-002", "Priya Patel", "Product", "Lead Product Manager", "Active", 12),
     ("EMP-003", "Rohan Verma", "Sales", "Account Executive", "On Leave", 8),
     ("EMP-004", "Ananya Iyer", "Operations", "Inventory Lead", "Active", 15),
     ("EMP-005", "Devansh Rao", "Engineering", "Systems Architect", "Active", 16),
     ("EMP-006", "Kavita Nair", "People & HR", "HR Generalist", "On Leave", 6),
-    ("EMP-007", "Vikram Malhotra", "Operations", "Financial Analyst", "Active", 11),
+    ("EMP-007", "Vikram Malhotra", "Finance", "Financial Analyst", "Active", 11),
     ("EMP-008", "Sneha Reddy", "Sales", "Sales Director", "Active", 18),
     ("EMP-009", "Arjun Kapoor", "Engineering", "Backend Engineer", "Active", 13),
     ("EMP-010", "Meera Joshi", "Product", "UI/UX Designer", "Active", 10),
@@ -88,6 +88,55 @@ EMPLOYEES_SEED = [
     ("EMP-015", "Kunal Singhania", "Engineering", "DevOps Engineer", "Active", 12),
     ("EMP-016", "Pooja Bose", "Product", "Product Analyst", "Active", 11),
 ]
+
+# Expand the internal synthetic workforce to a larger mid-sized demo company (180 employees).
+# The generation is deterministic so tests and demos remain reproducible.
+_ADDITIONAL_FIRST_NAMES = [
+    "Ishaan", "Aditi", "Kabir", "Riya", "Aditya", "Nisha", "Manav",
+    "Simran", "Rahul", "Tanya", "Varun", "Isha", "Nikhil",
+]
+_ADDITIONAL_LAST_NAMES = [
+    "Khanna", "Bansal", "Saxena", "Menon", "Chawla", "Desai", "Sethi", "Kulkarni", "Mishra", "Agarwal", "Bhatt", "Mukherjee", "Trivedi", "Dutta",
+]
+_DEPARTMENT_ROLES = [
+    ("Engineering", "Software Engineer"),
+    ("Product", "Product Manager"),
+    ("Sales", "Account Executive"),
+    ("Operations", "Supply Operations Analyst"),
+    ("People & HR", "People Operations Specialist"),
+    ("Finance", "Finance Analyst"),
+    ("Customer Success", "Customer Success Manager"),
+    ("Data & Analytics", "Data Analyst"),
+    ("Marketing", "Marketing Specialist"),
+    ("IT & Security", "Security Operations Analyst"),
+    ("Legal & Compliance", "Compliance Analyst"),
+    ("Procurement", "Procurement Specialist"),
+]
+_ADDITIONAL_ON_LEAVE_IDS = {26, 39, 52, 65, 78, 91, 104, 117, 130, 143, 156, 169, 176, 180}
+
+
+def _build_additional_employees():
+    employees = []
+    for employee_id in range(17, 181):
+        offset = employee_id - 17
+        first = _ADDITIONAL_FIRST_NAMES[offset % len(_ADDITIONAL_FIRST_NAMES)]
+        last = _ADDITIONAL_LAST_NAMES[offset // len(_ADDITIONAL_FIRST_NAMES)]
+        department, role = _DEPARTMENT_ROLES[offset % len(_DEPARTMENT_ROLES)]
+        status = "On Leave" if employee_id in _ADDITIONAL_ON_LEAVE_IDS else "Active"
+        leave_balance = 6 + ((employee_id * 3) % 13)
+        employees.append((
+            f"EMP-{employee_id:03d}",
+            f"{first} {last}",
+            department,
+            role,
+            status,
+            leave_balance,
+        ))
+    return employees
+
+
+EMPLOYEES_SEED = EMPLOYEES_BASE_SEED + _build_additional_employees()
+
 
 POLICIES_SEED = [
     (
@@ -152,7 +201,7 @@ def seed_database(conn: sqlite3.Connection) -> None:
     for eid, name, dept, role, status, balance in EMPLOYEES_SEED:
         cursor.execute(
             """
-            INSERT OR IGNORE INTO employees (id, name, department, role, status, leave_balance)
+            INSERT OR REPLACE INTO employees (id, name, department, role, status, leave_balance)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (eid, name, dept, role, status, balance)

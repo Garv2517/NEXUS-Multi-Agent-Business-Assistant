@@ -139,3 +139,18 @@ class AnalyticsService:
             total_products=len(items),
             products=items
         )
+
+    def get_inventory_product_detail(
+        self,
+        product_id: Optional[int] = None,
+        product_name: Optional[str] = None
+    ) -> InventoryProductItem:
+        """Returns one product's aggregate inventory position across all stores."""
+        row = self.repository.get_inventory_product_detail(
+            product_id=product_id,
+            product_name=product_name
+        )
+        if not row:
+            ident = product_id if product_id is not None else product_name
+            raise ValueError(f"Product '{ident}' not found in external analytics inventory.")
+        return InventoryProductItem(**row)

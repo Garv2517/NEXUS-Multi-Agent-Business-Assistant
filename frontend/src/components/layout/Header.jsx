@@ -8,6 +8,9 @@ const ROUTE_TITLES = {
   '/sales': 'Sales Intelligence',
   '/inventory': 'Inventory Management',
   '/hr': 'People Management',
+  '/performance': 'Business Performance',
+  '/risk': 'Insights & Risk',
+  '/forecast': 'Forecasting & Demand Planning',
   '/activity': 'AI Activity & Audit Logs',
   '/about': 'About Nexus'
 };
@@ -62,9 +65,14 @@ export function Header({ onToggleMobileMenu, healthStatus }) {
 
           {isFoundryConnected ? (
             <>
-              <span className="text-slate-300 font-medium">Azure AI</span>
+              <span className="text-slate-300 font-medium">Azure Foundry</span>
               <span className="text-slate-500 hidden sm:inline">•</span>
               <span className="text-emerald-400 font-semibold hidden sm:inline">Ready</span>
+              {healthStatus?.model && healthStatus.model !== 'not_configured' && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#2f27ce]/25 border border-[#433bff]/30 text-[#dedcff] hidden md:inline ml-0.5">
+                  {healthStatus.model}
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -79,11 +87,6 @@ export function Header({ onToggleMobileMenu, healthStatus }) {
             </>
           )}
 
-          {isOnline && (
-            <span className="text-[10px] text-slate-500 font-mono hidden md:inline ml-1">
-              42ms
-            </span>
-          )}
         </div>
 
         {/* User / University Profile Avatar */}

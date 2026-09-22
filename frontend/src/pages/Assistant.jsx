@@ -1,17 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layers, Sparkles, RefreshCw } from 'lucide-react';
 import { ChatWindow } from '../components/assistant/ChatWindow';
 import { ChatInput } from '../components/assistant/ChatInput';
 import { AgentTrace } from '../components/assistant/AgentTrace';
 import { useAgentTrace } from '../hooks/useAgentTrace';
 import { useChat } from '../hooks/useChat';
+import { getHealthStatus } from '../services/api';
 
 export function Assistant() {
   const [isMobileTraceOpen, setIsMobileTraceOpen] = useState(false);
+  const [routingStatus, setRoutingStatus] = useState(null);
 
   // Initialize custom hooks
   const agentTraceManager = useAgentTrace();
   const { messages, isProcessing, sendMessage, clearChat } = useChat(agentTraceManager);
+
+  useEffect(() => {
+    let active = true;
+    getHealthStatus()
+      .then((data) => {
+        if (active) setRoutingStatus(data);
+      })
+      .catch(() => {
+        if (active) setRoutingStatus(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const isFoundryRouting = routingStatus?.orchestration_mode === 'foundry_manager';
+  const routingLabel = isFoundryRouting
+    ? `Azure Foundry Routing Active${routingStatus?.model ? ` · ${routingStatus.model}` : ''}`
+    : 'Local Deterministic Routing';
 
   const handleSelectPrompt = (promptText) => {
     sendMessage(promptText);
@@ -33,7 +54,7 @@ export function Assistant() {
               Nexus Multi-Agent Workspace
             </span>
             <span className="text-[11px] text-slate-400 hidden sm:inline font-mono">
-              • Direct routing active
+              • {routingLabel}
             </span>
           </div>
 

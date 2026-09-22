@@ -379,11 +379,17 @@ async def test_deterministic_business_answers_remain_unchanged(test_db):
         foundry_router=mock_foundry,
         orchestration_mode="foundry_manager"
     )
-    resp = await manager.orchestrate("How much revenue did we make?", session_id="test-factual")
+    resp = await manager.orchestrate(
+        "How much revenue did we make?",
+        session_id="test-factual",
+        analytics_db_path=settings.get_analytics_database_path(),
+    )
 
-    # Facts MUST come from SQLite database seed data (124,500.00 INR, 248 units sold)
-    assert "124,500" in resp.answer
-    assert "248 units sold" in resp.answer
+    # Foundry chooses the route only; factual business values come from the verified analytics DB.
+    assert "$9,862,933.25" in resp.answer
+    assert "567,270" in resp.answer
+    assert "245,800" in resp.answer
+    assert "₹" not in resp.answer
 
 
 # =====================================================================

@@ -32,6 +32,7 @@ from ..models.business import (
     InventoryResponse,
     InventoryProduct,
     HRResponse,
+    HREmployee,
     HRPolicy,
     ActivityLogItem
 )
@@ -183,6 +184,7 @@ class BusinessService:
         """
         summary = get_employee_summary(db_path=db_path)
         policies_data = get_all_hr_policies_tool(db_path=db_path)
+        employees_data = get_all_employees_tool(db_path=db_path)
 
         policies = [
             HRPolicy(
@@ -192,13 +194,29 @@ class BusinessService:
             )
             for p in policies_data
         ]
+        employees = [
+            HREmployee(
+                id=e["id"],
+                name=e["name"],
+                department=e["department"],
+                role=e["role"],
+                status=e["status"],
+                leaveBalance=e["leave_balance"]
+            )
+            for e in employees_data
+        ]
+
+        # Open requests remain a synthetic workflow metric in this demo domain.
+        # Scale it deterministically with workforce size rather than leaving a tiny fixed value.
+        open_requests = max(4, round(summary["employee_count"] * 0.15))
 
         return HRResponse(
             employeeCount=summary["employee_count"],
             employeesOnLeave=summary["employees_on_leave"],
             departments=summary["departments"],
-            openRequests=4,
-            policies=policies
+            openRequests=open_requests,
+            policies=policies,
+            employees=employees
         )
 
     @staticmethod
@@ -233,11 +251,12 @@ class BusinessService:
         """
         Records a tool execution with measured timing into activity_logs.
         """
-        import time
+        import uuid
         from datetime import datetime
         now = datetime.now()
         ts = now.strftime("%H:%M")
-        log_id = f"act_{int(time.time() * 1000)}"
+        # UUID suffix avoids millisecond-ID collisions during fast multi-tool workflows.
+        log_id = f"act_{uuid.uuid4().hex[:16]}"
 
         try:
             with get_db(db_path) as conn:
