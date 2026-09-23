@@ -1,4 +1,4 @@
-# NEXUS â€” Multi-Agent Business Assistant
+# NEXUS - Multi-Agent Business Assistant
 
 > **AI-103 academic proof of concept** combining Azure AI Foundry, GPT-5-mini, deterministic specialist agents, reproducible retail analytics, risk analysis, and demand forecasting in one full-stack business workspace.
 
@@ -93,19 +93,19 @@ A compound request can execute this workflow:
 
 ```text
 Azure AI Foundry / gpt-5-mini
-        â†“
+        |
 compound_sales_inventory
-        â†“
+        |
 Sales Agent
-        â†“
+        |
 get_top_products()
-        â†“
+        |
 product IDs passed as context
-        â†“
+        |
 Inventory Agent
-        â†“
-get_product_stock() Ã— 3
-        â†“
+        |
+get_product_stock() x 3
+        |
 verified response
 ```
 
@@ -180,30 +180,30 @@ A separate synthetic internal domain provides:
 
 ```text
 User / Browser
-      â†“
+      |
 React + Vite Frontend
-      â†“ HTTP / JSON
+      | HTTP / JSON
 FastAPI Backend
-      â†“
+      |
 ChatService / Manager Agent
-      â†“
-Azure AI Foundry â€” gpt-5-mini
-      â†“
+      |
+Azure AI Foundry - gpt-5-mini
+      |
 Validated Intent
-      â†“
+      |
 Trusted Server Execution Plan
-      â†“
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ Sales Agent â”‚ Inventory Agent â”‚ People Agent â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-      â†“
+      |
++-------------+-----------------+--------------+
+| Sales Agent | Inventory Agent | People Agent |
++-------------+-----------------+--------------+
+      |
 Deterministic Verified Tools
-      â†“
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ nexus_analytics.db     â”‚ nexus.db             â”‚
-â”‚ Retail analytics      â”‚ People + activity    â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-      â†“
+      |
++------------------------+----------------------+
+| nexus_analytics.db     | nexus.db             |
+| Retail analytics      | People + activity    |
++------------------------+----------------------+
+      |
 Verified Response + Agent Trace
 ```
 
@@ -249,8 +249,8 @@ The model does **not** return arbitrary SQL or executable Python.
 The backend maps the validated intent to known operations, for example:
 
 ```text
-Step 1 â†’ Sales Agent â†’ get_top_products
-Step 2 â†’ Inventory Agent â†’ get_product_stock
+Step 1 -> Sales Agent -> get_top_products
+Step 2 -> Inventory Agent -> get_product_stock
 ```
 
 ### 5. Agent-to-agent context passing
@@ -362,7 +362,7 @@ Verified ingestion totals:
 | Inventory placements | 14,143 |
 | Sales transactions | 245,800 |
 | Units sold | 567,270 |
-| Sales period | Janâ€“Dec 2025 |
+| Sales period | Jan-Dec 2025 |
 | Revenue | $9,862,933.25 |
 | COGS | $5,556,827.27 |
 | Gross profit | $4,306,105.98 |
@@ -402,7 +402,7 @@ This assumption is disclosed in the API/UI rather than hidden.
 The analytics layer follows a read-only repository/service design:
 
 ```text
-API â†’ AnalyticsService â†’ AnalyticsRepository â†’ nexus_analytics.db
+API -> AnalyticsService -> AnalyticsRepository -> nexus_analytics.db
 ```
 
 Available analytics include:
@@ -436,10 +436,10 @@ Placement coverage tiers:
 | Tier | Rule |
 |---|---|
 | Stockout | stock = 0 or DOS = 0 |
-| High Pressure | 0 < DOS â‰¤ 130.87 |
-| Moderate Pressure | 130.87 < DOS â‰¤ 171.76 |
-| Typical | 171.76 < DOS â‰¤ 298.64 |
-| Elevated Coverage | 298.64 < DOS â‰¤ 392.04 |
+| High Pressure | 0 < DOS <= 130.87 |
+| Moderate Pressure | 130.87 < DOS <= 171.76 |
+| Typical | 171.76 < DOS <= 298.64 |
+| Elevated Coverage | 298.64 < DOS <= 392.04 |
 | Slow-Moving Candidate | DOS > 392.04 |
 
 Material slow-moving placement logic also requires meaningful inventory capital exposure.
@@ -489,15 +489,15 @@ NEXUS uses **rolling-origin time-series validation**, not a random train/test sp
 Primary selection metric:
 
 ```text
-Aggregate H1â€“H4 WAPE
+Aggregate H1-H4 WAPE
 ```
 
 Project-defined reliability bands:
 
 ```text
-Strong   â†’ WAPE â‰¤ 0.10
-Moderate â†’ 0.10 < WAPE â‰¤ 0.20
-Limited  â†’ WAPE > 0.20
+Strong   -> WAPE <= 0.10
+Moderate -> 0.10 < WAPE <= 0.20
+Limited  -> WAPE > 0.20
 ```
 
 These labels are project reliability bands, **not statistical confidence intervals**.
@@ -616,36 +616,36 @@ Legacy sales/inventory/dashboard routes remain for regression compatibility, whi
 
 ```text
 NEXUS/
-â”œâ”€â”€ README.md
-â”œâ”€â”€ docs/
-â”‚   â”œâ”€â”€ DEMO_SCRIPT.md
-â”‚   â””â”€â”€ FINAL_CHECKLIST.md
-â”œâ”€â”€ scripts/
-â”‚   â””â”€â”€ final_regression.ps1
-â”œâ”€â”€ backend/
-â”‚   â”œâ”€â”€ .env.example
-â”‚   â”œâ”€â”€ requirements.txt
-â”‚   â”œâ”€â”€ app/
-â”‚   â”‚   â”œâ”€â”€ agents/
-â”‚   â”‚   â”œâ”€â”€ api/
-â”‚   â”‚   â”œâ”€â”€ core/
-â”‚   â”‚   â”œâ”€â”€ orchestration/
-â”‚   â”‚   â”œâ”€â”€ repositories/
-â”‚   â”‚   â”œâ”€â”€ services/
-â”‚   â”‚   â””â”€â”€ tools/
-â”‚   â”œâ”€â”€ data/
-â”‚   â”‚   â”œâ”€â”€ nexus.db
-â”‚   â”‚   â””â”€â”€ external/usa_toy_sales/raw/
-â”‚   â”œâ”€â”€ scripts/
-â”‚   â”‚   â”œâ”€â”€ import_kaggle_dataset.py
-â”‚   â”‚   â””â”€â”€ d3a*_forecast_*.py
-â”‚   â””â”€â”€ tests/
-â””â”€â”€ frontend/
-    â”œâ”€â”€ package.json
-    â””â”€â”€ src/
-        â”œâ”€â”€ components/
-        â”œâ”€â”€ pages/
-        â””â”€â”€ services/
++-- README.md
++-- docs/
+|   +-- DEMO_SCRIPT.md
+|   +-- FINAL_CHECKLIST.md
++-- scripts/
+|   +-- final_regression.ps1
++-- backend/
+|   +-- .env.example
+|   +-- requirements.txt
+|   +-- app/
+|   |   +-- agents/
+|   |   +-- api/
+|   |   +-- core/
+|   |   +-- orchestration/
+|   |   +-- repositories/
+|   |   +-- services/
+|   |   +-- tools/
+|   +-- data/
+|   |   +-- nexus.db
+|   |   +-- external/usa_toy_sales/raw/
+|   +-- scripts/
+|   |   +-- import_kaggle_dataset.py
+|   |   +-- d3a*_forecast_*.py
+|   +-- tests/
++-- frontend/
+    +-- package.json
+    +-- src/
+        +-- components/
+        +-- pages/
+        +-- services/
 ```
 
 Generated folders, credentials, virtual environments, and `nexus_analytics.db` are intentionally excluded from version control.
@@ -827,15 +827,15 @@ The verified compound workflow demonstrates:
 
 ```text
 Manager Agent
-  â†“
+  |
 Foundry gpt-5-mini route selection
-  â†“
+  |
 Sales Agent
-  â†“ get_top_products()
+  | get_top_products()
 context_passed
-  â†“
+  |
 Inventory Agent
-  â†“ get_product_stock() Ã— 3
+  | get_product_stock() x 3
 Final grounded response
 ```
 
@@ -891,7 +891,7 @@ NEXUS is an academic proof of concept, not a production ERP system.
 Current limitations include:
 
 1. The USA Toy Sales dataset is synthetic/fictitious.
-2. Retail history covers only Janâ€“Dec 2025.
+2. Retail history covers only Jan-Dec 2025.
 3. Inventory is point-in-time data with no source-provided snapshot date.
 4. Forecasting has limited historical depth and should not be interpreted as long-term certainty.
 5. Supplier lead-time and safety-stock data are unavailable.
@@ -926,15 +926,15 @@ Potential extensions include:
 
 A concise project demonstration can follow this order:
 
-1. **Overview** â€” unified business KPIs and the two data domains.
-2. **Sales + Inventory** â€” consistent Kaggle-backed retail information.
-3. **Business Performance** â€” revenue, profit, product, category, store, and location analytics.
-4. **Insights & Risk** â€” deterministic risk signals.
-5. **Forecasting** â€” four-week forecast and inventory demand coverage.
-6. **People Management** â€” separate internal workforce domain.
-7. **Assistant** â€” run the compound sales/inventory question.
-8. **Developer View** â€” show `routing_source: foundry`, `model: gpt-5-mini`, and agent-to-agent context passing.
-9. **Guardrail** â€” ask a weather question and show `unsupported` with no specialist execution.
+1. **Overview** - unified business KPIs and the two data domains.
+2. **Sales + Inventory** - consistent Kaggle-backed retail information.
+3. **Business Performance** - revenue, profit, product, category, store, and location analytics.
+4. **Insights & Risk** - deterministic risk signals.
+5. **Forecasting** - four-week forecast and inventory demand coverage.
+6. **People Management** - separate internal workforce domain.
+7. **Assistant** - run the compound sales/inventory question.
+8. **Developer View** - show `routing_source: foundry`, `model: gpt-5-mini`, and agent-to-agent context passing.
+9. **Guardrail** - ask a weather question and show `unsupported` with no specialist execution.
 
 Prepared supporting material is available in:
 
@@ -965,6 +965,6 @@ The result is a business assistant that is more flexible than a fixed dashboard 
 
 ---
 
-**Project:** NEXUS â€” Multi-Agent Business Assistant
+**Project:** NEXUS - Multi-Agent Business Assistant
 **Course:** AI-103
 **Status:** Academic Proof of Concept
